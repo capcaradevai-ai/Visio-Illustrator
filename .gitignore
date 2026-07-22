@@ -1,5 +1,8 @@
 .DS_Store
 Thumbs.db
 node_modules/
+**/bin/
+**/obj/
+TestResults/
 *.log
 .drawio-live-mcp/
