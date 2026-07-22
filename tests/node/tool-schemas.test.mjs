@@ -119,6 +119,12 @@ test("scientific component schema is bounded and editable", () => {
     bounds: { x: 100, y: 100, width: 500, height: 350 },
     options: { rows: 6, columns: 8, primary_color: "#245B91" },
   }, component.inputSchema));
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "wireless",
+    component: "wireless_link",
+    bounds: { x: 100, y: 100, width: 80, height: 80 },
+    options: { count: 3, direction: "left", primary_color: "#245B91" },
+  }, component.inputSchema));
   assert.throws(() => validateSchema({
     semantic_id: "tensor",
     component: "tensor_cube",

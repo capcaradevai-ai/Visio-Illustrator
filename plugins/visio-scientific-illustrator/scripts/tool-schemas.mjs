@@ -969,6 +969,7 @@ export const liveTools = [
             count: { type: "integer", minimum: 1, maximum: 30 },
             show_labels: { type: "boolean" },
             image_path: absolutePath("png|jpg|jpeg|svg|emf", "Optional local image inside a video-frame component."),
+            direction: { type: "string", enum: ["right", "left"] },
           },
           additionalProperties: false,
         },

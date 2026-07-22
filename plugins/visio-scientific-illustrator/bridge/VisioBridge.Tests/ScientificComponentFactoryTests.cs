@@ -72,4 +72,21 @@ public sealed class ScientificComponentFactoryTests
                 "x", "tensor_cube", new PixelBox(0, 0, 100, 100),
                 new ScientificComponentOptions(Rows: 101, Columns: 2))));
     }
+
+    [Fact]
+    public void Wireless_link_direction_mirrors_editable_arc_geometry()
+    {
+        var bounds = new PixelBox(0, 0, 100, 80);
+        var right = ScientificComponentPlanner.Create(new AddScientificComponentCommand(
+            "right", "wireless_link", bounds,
+            new ScientificComponentOptions(Count: 3, Direction: "right")));
+        var left = ScientificComponentPlanner.Create(new AddScientificComponentCommand(
+            "left", "wireless_link", bounds,
+            new ScientificComponentOptions(Count: 3, Direction: "left")));
+
+        var rightStart = right.Primitives[0].Sections![0].Commands[0].X;
+        var leftStart = left.Primitives[0].Sections![0].Commands[0].X;
+        Assert.Equal(0, rightStart);
+        Assert.Equal(100, leftStart);
+    }
 }

@@ -17,7 +17,8 @@ public sealed record ScientificComponentOptions(
     int? Columns = null,
     int? Count = null,
     [property: JsonPropertyName("show_labels")] bool? ShowLabels = null,
-    [property: JsonPropertyName("image_path")] string? ImagePath = null);
+    [property: JsonPropertyName("image_path")] string? ImagePath = null,
+    string? Direction = null);
 
 public sealed record ScientificComponentMutationResult(
     string SemanticId,

@@ -192,12 +192,24 @@ internal static class ScientificComponentPlanner
     private static List<ComponentPrimitive> Wireless(PixelBox b, ScientificComponentOptions o, string p)
     {
         var count = Range(o.Count, 3, 2, 8, "count");
+        var direction = o.Direction ?? "right";
+        if (direction is not ("right" or "left"))
+            throw Invalid("wireless_link direction 仅允许 right 或 left。");
         var result = new List<ComponentPrimitive>();
         for (var index = 0; index < count; index++)
         {
             var inset = index * .12;
+            IReadOnlyList<ScenePathCommand> commands =
+                [new("M",0,80),new("C",100,80,20,0,80,0)];
+            if (direction == "left")
+                commands = commands.Select(command => command with
+                {
+                    X = command.X is null ? null : 100 - command.X,
+                    X1 = command.X1 is null ? null : 100 - command.X1,
+                    X2 = command.X2 is null ? null : 100 - command.X2,
+                }).ToArray();
             result.Add(Curve($"arc_{index + 1}", B(b, inset, inset, 1 - inset * 2, 1 - inset * 2),
-                [new("M",0,80),new("C",100,80,20,0,80,0)], p, 2));
+                commands, p, 2));
         }
         return result;
     }
