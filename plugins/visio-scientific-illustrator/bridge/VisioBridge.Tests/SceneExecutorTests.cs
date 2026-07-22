@@ -1,3 +1,4 @@
+using System.Text.Json;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Scenes;
 
@@ -72,6 +73,27 @@ public sealed class SceneExecutorTests
 
         Assert.True(IndexOf(plan, "add_shape", "a") < IndexOf(plan, "group_shapes", "pair"));
         Assert.True(IndexOf(plan, "group_shapes", "pair") < IndexOf(plan, "add_connector", "flow"));
+    }
+
+    [Fact]
+    public void Rich_text_shape_plan_does_not_send_mutually_exclusive_plain_label()
+    {
+        var richText = new RichText("InputSD", Runs:
+        [
+            new TextRun(0, 5, Bold: true),
+            new TextRun(5, 2, Subscript: true),
+        ]);
+        var scene = new ScientificScene(
+            "rich", new SceneCanvas(400, 200, 96), new Dictionary<string, string>(), ["content"],
+            [new SceneShapeNode("shape", new PixelBox(20, 20, 200, 100), "rectangle", "InputSD", RichText: richText)],
+            [], [new SceneRegion("main", new PixelBox(0, 0, 400, 200), true)]);
+
+        var plan = SceneExecutor.Prepare(new DrawSceneCommand(scene));
+        var step = plan.Steps.Single(item => item.SemanticId == "shape" && item.Command == "add_shape");
+        var command = step.Parameters.Deserialize<AddShapeCommand>(ProtocolJson.Options)!;
+
+        Assert.Null(command.Label);
+        Assert.Equal(richText.Text, command.RichText!.Text);
     }
 
     private static int IndexOf(SceneExecutionPlan plan, string command, string id) =>

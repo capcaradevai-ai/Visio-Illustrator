@@ -122,7 +122,10 @@ internal static class SceneExecutor
     private static object NodeParameters(SceneNode node) => node switch
     {
         SceneShapeNode shape => new AddShapeCommand(
-            shape.SemanticId, shape.Shape, shape.Bounds, shape.Label, shape.Style, shape.RichText),
+            shape.SemanticId, shape.Shape, shape.Bounds,
+            shape.RichText is null ? shape.Label : null,
+            shape.Style,
+            shape.RichText),
         SceneTextNode text => new AddShapeCommand(
             text.SemanticId, "text", text.Bounds,
             text.RichText is null ? text.Text : null,
