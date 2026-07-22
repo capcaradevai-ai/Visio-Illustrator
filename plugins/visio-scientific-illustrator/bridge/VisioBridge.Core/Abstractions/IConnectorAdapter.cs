@@ -8,16 +8,20 @@ public interface IConnectorAdapter
         IShapeHandle source,
         IShapeHandle target,
         string routing,
-        IReadOnlyList<PixelPoint>? waypoints);
+        IReadOnlyList<PixelPoint>? waypoints,
+        IReadOnlyList<IShapeHandle> avoidShapes);
 
     void Glue(
         IShapeHandle connector,
         IShapeHandle source,
         IShapeHandle target,
-        int? sourceConnectionPoint,
-        int? targetConnectionPoint);
+        ConnectorAnchor sourceAnchor,
+        ConnectorAnchor targetAnchor,
+        string connectorSemanticId);
 
-    void SetLabel(IShapeHandle connector, string? label);
+    void SetLabel(IShapeHandle connector, string? label, double? labelPosition);
+
+    void ApplyRoutingOptions(IShapeHandle connector, string? jumpStyle);
 
     void ApplyStyle(IShapeHandle connector, ConnectorStyle? style);
 

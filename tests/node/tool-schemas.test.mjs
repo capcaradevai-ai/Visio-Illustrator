@@ -203,6 +203,31 @@ test("connector schema exposes Visio routing, connection points, and waypoints",
     target: "output",
     routing: "polyline",
   }, connector.inputSchema));
+
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "rich-flow",
+    source: "input",
+    target: "output",
+    routing: "right_angle",
+    source_anchor: { mode: "normalized", x: 1, y: 0.25 },
+    target_anchor: { mode: "auto", name: "left" },
+    jump_style: "arc",
+    label_position: 0.7,
+    avoid_shape_ids: ["obstacle-a", "obstacle-b"],
+  }, connector.inputSchema));
+  assert.throws(() => validateSchema({
+    semantic_id: "mixed",
+    source: "input",
+    target: "output",
+    source_connection_point: 1,
+    source_anchor: { mode: "auto" },
+  }, connector.inputSchema));
+  assert.throws(() => validateSchema({
+    semantic_id: "bad-normalized",
+    source: "input",
+    target: "output",
+    source_anchor: { mode: "normalized", x: 1.2, y: 0.5 },
+  }, connector.inputSchema));
 });
 
 test("file export scope matches the selected Visio export API", () => {

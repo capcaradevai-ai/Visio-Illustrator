@@ -19,25 +19,29 @@ public sealed class ConnectorService
     public ConnectorMutationResult Add(AddConnectorCommand command)
     {
         ArgumentNullException.ThrowIfNull(command);
-        var routing = Validate(command);
+        var plan = Validate(command);
 
         using var source = _repository.Resolve(command.Source);
         using var target = _repository.Resolve(command.Target);
+        var avoidShapes = ResolveAvoidShapes(plan.AvoidShapeIds);
         IShapeHandle? connector = null;
         var deleted = false;
         var phase = "create";
         try
         {
-            connector = _adapter.Create(source, target, routing, command.Waypoints);
+            connector = _adapter.Create(source, target, plan.Routing, command.Waypoints, avoidShapes);
             phase = "glue";
             _adapter.Glue(
                 connector,
                 source,
                 target,
-                command.SourceConnectionPoint,
-                command.TargetConnectionPoint);
+                plan.SourceAnchor,
+                plan.TargetAnchor,
+                command.SemanticId);
+            phase = "routing_options";
+            _adapter.ApplyRoutingOptions(connector, command.JumpStyle);
             phase = "label";
-            _adapter.SetLabel(connector, command.Label);
+            _adapter.SetLabel(connector, command.Label, command.LabelPosition);
             phase = "style";
             _adapter.ApplyStyle(connector, command.Style);
             phase = "semantic_id";
@@ -93,10 +97,26 @@ public sealed class ConnectorService
         finally
         {
             connector?.Dispose();
+            foreach (var avoidShape in avoidShapes) avoidShape.Dispose();
         }
     }
 
-    private static string Validate(AddConnectorCommand command)
+    private IReadOnlyList<IShapeHandle> ResolveAvoidShapes(IReadOnlyList<string> semanticIds)
+    {
+        var shapes = new List<IShapeHandle>(semanticIds.Count);
+        try
+        {
+            foreach (var semanticId in semanticIds) shapes.Add(_repository.Resolve(semanticId));
+            return shapes;
+        }
+        catch
+        {
+            foreach (var shape in shapes) shape.Dispose();
+            throw;
+        }
+    }
+
+    private static ConnectorPlan Validate(AddConnectorCommand command)
     {
         if (string.Equals(command.Source, command.Target, StringComparison.Ordinal))
         {
@@ -137,6 +157,55 @@ public sealed class ConnectorService
                 BridgeErrorCodes.InvalidArgument,
                 "waypoints 仅可用于 polyline routing。");
         }
-        return routing;
+        if (command.SourceAnchor is not null && command.SourceConnectionPoint is not null
+            || command.TargetAnchor is not null && command.TargetConnectionPoint is not null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.InvalidArgument,
+                "source_anchor/target_anchor 不能与旧 connection point 字段混用。");
+        }
+        var sourceAnchor = command.SourceAnchor
+            ?? (command.SourceConnectionPoint is not null
+                ? new ConnectorAnchor("connection_point", Row: command.SourceConnectionPoint)
+                : new ConnectorAnchor("auto"));
+        var targetAnchor = command.TargetAnchor
+            ?? (command.TargetConnectionPoint is not null
+                ? new ConnectorAnchor("connection_point", Row: command.TargetConnectionPoint)
+                : new ConnectorAnchor("auto"));
+        ConnectionPointService.ValidateAnchor(sourceAnchor);
+        ConnectionPointService.ValidateAnchor(targetAnchor);
+        if (command.JumpStyle is not null
+            && command.JumpStyle is not ("none" or "arc" or "gap" or "square"))
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.InvalidArgument,
+                "jump_style 仅允许 none、arc、gap 或 square。");
+        }
+        if (command.LabelPosition is not null
+            && (!double.IsFinite(command.LabelPosition.Value)
+                || command.LabelPosition is < 0 or > 1))
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.InvalidArgument,
+                "label_position 必须在 0–1 范围内。");
+        }
+        var avoidShapeIds = command.AvoidShapeIds ?? [];
+        if (avoidShapeIds.Count > 128
+            || avoidShapeIds.Any(string.IsNullOrWhiteSpace)
+            || avoidShapeIds.Distinct(StringComparer.Ordinal).Count() != avoidShapeIds.Count
+            || avoidShapeIds.Contains(command.Source, StringComparer.Ordinal)
+            || avoidShapeIds.Contains(command.Target, StringComparer.Ordinal))
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.InvalidArgument,
+                "avoid_shape_ids 必须唯一、非空、不含端点且最多 128 个。");
+        }
+        return new ConnectorPlan(routing, sourceAnchor, targetAnchor, avoidShapeIds);
     }
+
+    private sealed record ConnectorPlan(
+        string Routing,
+        ConnectorAnchor SourceAnchor,
+        ConnectorAnchor TargetAnchor,
+        IReadOnlyList<string> AvoidShapeIds);
 }

@@ -191,6 +191,27 @@ public sealed class VisioSession : IVisioSession
             return (_document!.FullName, _document.Saved);
         });
 
+    public double ReadCellResultForIntegrationTest(string semanticId, string cellName)
+        => InvokeReady(() =>
+        {
+            var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+            using var handle = repository.Resolve(semanticId);
+            var shape = ((VisioShapeHandle)handle).Shape;
+            if (shape.CellExistsU[cellName, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
+                throw new BridgeCommandException(
+                    BridgeErrorCodes.CellNotFound,
+                    $"Shape {semanticId} 不存在单元格 {cellName}。");
+            var cell = shape.CellsU[cellName];
+            try
+            {
+                return cell.ResultIU;
+            }
+            finally
+            {
+                Marshal.FinalReleaseComObject(cell);
+            }
+        });
+
     public SaveResult Save(SaveCommand command)
         => InvokeReady(() =>
         {

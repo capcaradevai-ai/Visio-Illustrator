@@ -285,6 +285,58 @@ const connectorStyle = {
   additionalProperties: false,
 };
 
+const connectorAnchor = {
+  oneOf: [
+    {
+      type: "object",
+      required: ["mode"],
+      properties: {
+        mode: { const: "auto" },
+        name: {
+          type: "string",
+          enum: ["top", "right", "bottom", "left", "top_right", "bottom_right", "bottom_left", "top_left"],
+        },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["mode", "row"],
+      properties: {
+        mode: { const: "connection_point" },
+        row: { type: "integer", minimum: 1, maximum: 32767 },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["mode", "name"],
+      properties: {
+        mode: { const: "connection_point" },
+        name: { type: "string", pattern: "^[A-Za-z][A-Za-z0-9_]{0,63}$" },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["mode", "x", "y"],
+      properties: {
+        mode: { const: "normalized" },
+        x: { type: "number", minimum: 0, maximum: 1 },
+        y: { type: "number", minimum: 0, maximum: 1 },
+      },
+      additionalProperties: false,
+    },
+  ],
+};
+
+const connectorAnchorExclusion = {
+  anyOf: [
+    { required: ["source_connection_point", "source_anchor"] },
+    { required: ["target_connection_point", "target_anchor"] },
+  ],
+};
+
 const shapeProperties = {
   semantic_id: semanticId,
   shape: {
@@ -319,6 +371,11 @@ const connectorBaseProperties = {
   label: { type: "string", maxLength: 10000 },
   source_connection_point: { type: "integer", minimum: 1, maximum: 32767 },
   target_connection_point: { type: "integer", minimum: 1, maximum: 32767 },
+  source_anchor: connectorAnchor,
+  target_anchor: connectorAnchor,
+  jump_style: { type: "string", enum: ["none", "arc", "gap", "square"] },
+  label_position: { type: "number", minimum: 0, maximum: 1 },
+  avoid_shape_ids: { type: "array", maxItems: 128, items: semanticId },
   style: connectorStyle,
 };
 
@@ -335,6 +392,7 @@ function connectorSchema(extraProperties = {}, extraRequired = []) {
           routing: { const: "polyline" },
           waypoints: { type: "array", minItems: 1, maxItems: 64, items: waypoint },
         },
+        not: connectorAnchorExclusion,
         additionalProperties: false,
       },
       {
@@ -345,6 +403,7 @@ function connectorSchema(extraProperties = {}, extraRequired = []) {
           ...connectorBaseProperties,
           routing: { type: "string", enum: ["dynamic", "right_angle", "straight"] },
         },
+        not: connectorAnchorExclusion,
         additionalProperties: false,
       },
     ],

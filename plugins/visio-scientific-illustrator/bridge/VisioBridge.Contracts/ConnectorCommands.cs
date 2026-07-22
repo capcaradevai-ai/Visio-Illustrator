@@ -11,7 +11,19 @@ public sealed record AddConnectorCommand(
     string? Label = null,
     string? Routing = null,
     [property: JsonPropertyName("source_connection_point")] int? SourceConnectionPoint = null,
-    [property: JsonPropertyName("target_connection_point")] int? TargetConnectionPoint = null);
+    [property: JsonPropertyName("target_connection_point")] int? TargetConnectionPoint = null,
+    [property: JsonPropertyName("source_anchor")] ConnectorAnchor? SourceAnchor = null,
+    [property: JsonPropertyName("target_anchor")] ConnectorAnchor? TargetAnchor = null,
+    [property: JsonPropertyName("jump_style")] string? JumpStyle = null,
+    [property: JsonPropertyName("label_position")] double? LabelPosition = null,
+    [property: JsonPropertyName("avoid_shape_ids")] IReadOnlyList<string>? AvoidShapeIds = null);
+
+public sealed record ConnectorAnchor(
+    string Mode,
+    string? Name = null,
+    int? Row = null,
+    double? X = null,
+    double? Y = null);
 
 public sealed record ConnectorStyle(
     [property: JsonPropertyName("stroke_color")] string? StrokeColor = null,

@@ -62,17 +62,31 @@ internal sealed class FakeConnectorAdapter : IConnectorAdapter
 
     public int? TargetConnectionPoint { get; private set; }
 
+    public ConnectorAnchor? SourceAnchor { get; private set; }
+
+    public ConnectorAnchor? TargetAnchor { get; private set; }
+
+    public string? ConnectorSemanticId { get; private set; }
+
+    public string? JumpStyle { get; private set; }
+
+    public double? LabelPosition { get; private set; }
+
+    public IReadOnlyList<string>? AvoidShapeIds { get; private set; }
+
     public COMException? CreateError { get; set; }
 
     public IShapeHandle Create(
         IShapeHandle source,
         IShapeHandle target,
         string routing,
-        IReadOnlyList<PixelPoint>? waypoints)
+        IReadOnlyList<PixelPoint>? waypoints,
+        IReadOnlyList<IShapeHandle> avoidShapes)
     {
         if (CreateError is not null) throw CreateError;
         Routing = routing;
         Waypoints = waypoints;
+        AvoidShapeIds = avoidShapes.Cast<FakeShape>().Select(shape => shape.UserCodexId!).ToArray();
         _connector = new FakeShape(100, null);
         return _connector;
     }
@@ -81,15 +95,28 @@ internal sealed class FakeConnectorAdapter : IConnectorAdapter
         IShapeHandle connector,
         IShapeHandle source,
         IShapeHandle target,
-        int? sourceConnectionPoint,
-        int? targetConnectionPoint)
+        ConnectorAnchor sourceAnchor,
+        ConnectorAnchor targetAnchor,
+        string connectorSemanticId)
     {
         GlueCalled = true;
-        SourceConnectionPoint = sourceConnectionPoint;
-        TargetConnectionPoint = targetConnectionPoint;
+        SourceAnchor = sourceAnchor;
+        TargetAnchor = targetAnchor;
+        ConnectorSemanticId = connectorSemanticId;
+        SourceConnectionPoint = sourceAnchor.Row;
+        TargetConnectionPoint = targetAnchor.Row;
     }
 
-    public void SetLabel(IShapeHandle connector, string? label) => Label = label;
+    public void SetLabel(IShapeHandle connector, string? label, double? labelPosition)
+    {
+        Label = label;
+        LabelPosition = labelPosition;
+    }
+
+    public void ApplyRoutingOptions(IShapeHandle connector, string? jumpStyle)
+    {
+        JumpStyle = jumpStyle;
+    }
 
     public void ApplyStyle(IShapeHandle connector, ConnectorStyle? style)
     {

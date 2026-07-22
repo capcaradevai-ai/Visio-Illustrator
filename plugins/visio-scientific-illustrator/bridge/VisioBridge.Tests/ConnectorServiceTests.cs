@@ -96,4 +96,74 @@ public sealed class ConnectorServiceTests
         Assert.Equal(BridgeErrorCodes.VisioBusy, error.Code);
         Assert.True(error.Retryable);
     }
+
+    [Fact]
+    public void Rich_connector_options_are_resolved_and_forwarded_atomically()
+    {
+        var fixture = ConnectorFixture.CreateWithShapes("source", "target", "obstacle");
+        var sourceAnchor = new ConnectorAnchor("normalized", X: 1, Y: 0.25);
+        var targetAnchor = new ConnectorAnchor("connection_point", Name: "left");
+
+        fixture.Service.Add(new AddConnectorCommand(
+            "flow",
+            "source",
+            "target",
+            Label: "features",
+            Routing: "right_angle",
+            SourceAnchor: sourceAnchor,
+            TargetAnchor: targetAnchor,
+            JumpStyle: "arc",
+            LabelPosition: 0.7,
+            AvoidShapeIds: ["obstacle"]));
+
+        Assert.Equal(sourceAnchor, fixture.Adapter.SourceAnchor);
+        Assert.Equal(targetAnchor, fixture.Adapter.TargetAnchor);
+        Assert.Equal("flow", fixture.Adapter.ConnectorSemanticId);
+        Assert.Equal("arc", fixture.Adapter.JumpStyle);
+        Assert.Equal(0.7, fixture.Adapter.LabelPosition);
+        Assert.Equal(["obstacle"], fixture.Adapter.AvoidShapeIds);
+    }
+
+    [Fact]
+    public void New_anchor_contract_cannot_be_mixed_with_legacy_connection_point_fields()
+    {
+        var fixture = ConnectorFixture.CreateWithShapes("source", "target");
+
+        var error = Assert.Throws<BridgeCommandException>(() => fixture.Service.Add(
+            new AddConnectorCommand(
+                "flow",
+                "source",
+                "target",
+                SourceConnectionPoint: 1,
+                SourceAnchor: new ConnectorAnchor("auto"))));
+
+        Assert.Equal(BridgeErrorCodes.InvalidArgument, error.Code);
+    }
+
+    [Theory]
+    [InlineData("round")]
+    [InlineData("")]
+    public void Invalid_jump_style_is_rejected(string jumpStyle)
+    {
+        var fixture = ConnectorFixture.CreateWithShapes("source", "target");
+
+        var error = Assert.Throws<BridgeCommandException>(() => fixture.Service.Add(
+            new AddConnectorCommand("flow", "source", "target", JumpStyle: jumpStyle)));
+
+        Assert.Equal(BridgeErrorCodes.InvalidArgument, error.Code);
+    }
+
+    [Fact]
+    public void Label_position_and_avoid_shape_ids_are_validated_before_create()
+    {
+        var fixture = ConnectorFixture.CreateWithShapes("source", "target");
+
+        var positionError = Assert.Throws<BridgeCommandException>(() => fixture.Service.Add(
+            new AddConnectorCommand("flow", "source", "target", LabelPosition: 1.1)));
+        var avoidError = Assert.Throws<BridgeCommandException>(() => fixture.Service.Add(
+            new AddConnectorCommand("flow", "source", "target", AvoidShapeIds: ["missing"])));
+
+        Assert.Equal(BridgeErrorCodes.InvalidArgument, positionError.Code);
+        Assert.Equal(BridgeErrorCodes.ShapeNotFound, avoidError.Code);
+    }
 }

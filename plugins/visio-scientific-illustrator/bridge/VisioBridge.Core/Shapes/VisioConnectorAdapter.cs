@@ -20,6 +20,7 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
     private readonly Visio.Page _page;
     private readonly Visio.InvisibleApp _application;
     private readonly GeometryConverter _geometry;
+    private readonly ConnectionPointService _connectionPoints = new();
 
     public VisioConnectorAdapter(
         Visio.Page page,
@@ -35,8 +36,15 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         IShapeHandle source,
         IShapeHandle target,
         string routing,
-        IReadOnlyList<PixelPoint>? waypoints)
+        IReadOnlyList<PixelPoint>? waypoints,
+        IReadOnlyList<IShapeHandle> avoidShapes)
     {
+        foreach (var avoidShape in avoidShapes)
+        {
+            var obstacle = RequireVisio(avoidShape).Shape;
+            StyleMapper.SetFormula(obstacle, "ShapePermeableX", "0");
+            StyleMapper.SetFormula(obstacle, "ShapePermeableY", "0");
+        }
         var sourceShape = RequireVisio(source);
         var targetShape = RequireVisio(target);
         var sourcePoint = ReadPagePin(sourceShape.Shape, "read_source_pin");
@@ -120,8 +128,9 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         IShapeHandle connector,
         IShapeHandle source,
         IShapeHandle target,
-        int? sourceConnectionPoint,
-        int? targetConnectionPoint)
+        ConnectorAnchor sourceAnchor,
+        ConnectorAnchor targetAnchor,
+        string connectorSemanticId)
     {
         var connectorShape = RequireVisio(connector).Shape;
         var sourceShape = RequireVisio(source).Shape;
@@ -134,8 +143,18 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         {
             begin = connectorShape.CellsU["BeginX"];
             end = connectorShape.CellsU["EndX"];
-            sourcePin = GetConnectionCell(sourceShape, sourceConnectionPoint);
-            targetPin = GetConnectionCell(targetShape, targetConnectionPoint);
+            sourcePin = _connectionPoints.Resolve(
+                sourceShape,
+                targetShape,
+                sourceAnchor,
+                connectorSemanticId,
+                "source");
+            targetPin = _connectionPoints.Resolve(
+                targetShape,
+                sourceShape,
+                targetAnchor,
+                connectorSemanticId,
+                "target");
             begin.GlueTo(sourcePin);
             end.GlueTo(targetPin);
         }
@@ -148,9 +167,35 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         }
     }
 
-    public void SetLabel(IShapeHandle connector, string? label)
+    public void SetLabel(IShapeHandle connector, string? label, double? labelPosition)
     {
-        if (label is not null) RequireVisio(connector).Shape.Text = label;
+        var shape = RequireVisio(connector).Shape;
+        if (label is not null) shape.Text = label;
+        if (labelPosition is null) return;
+        StyleMapper.SetFormula(shape, "TxtPinX", $"Width*{Number(labelPosition.Value)}");
+        StyleMapper.SetFormula(shape, "TxtPinY", "Height*0.5");
+        StyleMapper.SetFormula(shape, "TxtLocPinX", "TxtWidth*0.5");
+        StyleMapper.SetFormula(shape, "TxtLocPinY", "TxtHeight*0.5");
+    }
+
+    public void ApplyRoutingOptions(IShapeHandle connector, string? jumpStyle)
+    {
+        var shape = RequireVisio(connector).Shape;
+        if (jumpStyle is not null)
+        {
+            var (code, style) = jumpStyle switch
+            {
+                "none" => ("1", "0"),
+                "arc" => ("2", "1"),
+                "gap" => ("2", "2"),
+                "square" => ("2", "3"),
+                _ => throw new BridgeCommandException(
+                    BridgeErrorCodes.InvalidArgument,
+                    $"不支持 jump_style: {jumpStyle}"),
+            };
+            StyleMapper.SetFormula(shape, "ConLineJumpCode", code);
+            StyleMapper.SetFormula(shape, "ConLineJumpStyle", style);
+        }
     }
 
     public void ApplyStyle(IShapeHandle connector, ConnectorStyle? style)
@@ -238,18 +283,6 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
             BridgeErrorCodes.InternalError,
             "Connector adapter 收到非 Visio Shape handle。");
 
-    private static Visio.Cell GetConnectionCell(Visio.Shape shape, int? row)
-    {
-        var cellName = row.HasValue ? $"Connections.X{row.Value}" : "PinX";
-        if (shape.CellExistsU[cellName, 0] == 0)
-        {
-            throw new BridgeCommandException(
-                BridgeErrorCodes.CellNotFound,
-                $"Shape {shape.NameU} 不存在连接点 {cellName}。");
-        }
-        return shape.CellsU[cellName];
-    }
-
     private static (double X, double Y) ReadPagePin(
         Visio.Shape shape,
         string phase)
@@ -310,6 +343,9 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         }
         StyleMapper.SetFormula(shape, cellName, formula);
     }
+
+    private static string Number(double value) =>
+        value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
 
     private static void Release<T>(ref T? value)
         where T : class

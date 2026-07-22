@@ -77,6 +77,9 @@ public sealed class VisioFixture : IDisposable
     public (string FullName, bool Saved) ReadDocumentSaveState() =>
         _session.ReadDocumentSaveStateForIntegrationTest();
 
+    public double ReadCellResult(string semanticId, string cellName) =>
+        _session.ReadCellResultForIntegrationTest(semanticId, cellName);
+
     public PreviewResult ExportPreview(int widthPx) =>
         _session.ExportPreview(widthPx);
 

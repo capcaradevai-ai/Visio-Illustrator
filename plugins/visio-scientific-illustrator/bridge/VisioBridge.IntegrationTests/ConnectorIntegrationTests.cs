@@ -1,9 +1,76 @@
 using VisioBridge.Contracts;
+using System.IO.Compression;
+using System.Xml.Linq;
 
 namespace VisioBridge.IntegrationTests;
 
 public sealed class ConnectorIntegrationTests
 {
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
+    public void Rich_connector_anchors_jump_label_and_avoidance_survive_vsdx_save()
+    {
+        var fixture = VisioFixture.StartVisible();
+        var output = Path.Combine(Path.GetTempPath(), $"visio-rich-connector-{Guid.NewGuid():N}.vsdx");
+        try
+        {
+            fixture.AddShape(new AddShapeCommand(
+                "rich-source", "rectangle", new PixelBox(100, 300, 220, 120)));
+            fixture.AddShape(new AddShapeCommand(
+                "rich-target", "rectangle", new PixelBox(1100, 300, 220, 120)));
+            fixture.AddShape(new AddShapeCommand(
+                "obstacle", "rectangle", new PixelBox(650, 260, 260, 220)));
+
+            fixture.AddConnector(new AddConnectorCommand(
+                "rich-flow",
+                "rich-source",
+                "rich-target",
+                Label: "feature flow",
+                Routing: "right_angle",
+                SourceAnchor: new ConnectorAnchor("normalized", X: 1, Y: 0.25),
+                TargetAnchor: new ConnectorAnchor("auto", Name: "left"),
+                JumpStyle: "arc",
+                LabelPosition: 0.7,
+                AvoidShapeIds: ["obstacle"]));
+
+            Assert.Equal(0, fixture.ReadCellResult("obstacle", "ShapePermeableX"));
+            Assert.Equal(0, fixture.ReadCellResult("obstacle", "ShapePermeableY"));
+
+            fixture.Save(output);
+            fixture.Dispose();
+
+            using var archive = ZipFile.OpenRead(output);
+            var page = archive.GetEntry("visio/pages/page1.xml");
+            Assert.NotNull(page);
+            using var reader = new StreamReader(page.Open());
+            var xml = XDocument.Parse(reader.ReadToEnd());
+            var shapes = xml.Descendants().Where(element => element.Name.LocalName == "Shape").ToArray();
+            var connector = Assert.Single(shapes.Where(shape => (string?)shape.Attribute("NameU") == "Codex_rich_flow"));
+            var source = Assert.Single(shapes.Where(shape => (string?)shape.Attribute("NameU") == "Codex_rich_source"));
+            var target = Assert.Single(shapes.Where(shape => (string?)shape.Attribute("NameU") == "Codex_rich_target"));
+
+            AssertCell(connector, "ConLineJumpCode", "2");
+            AssertCell(connector, "ConLineJumpStyle", "1");
+            var textPin = connector.Descendants().Single(cell =>
+                cell.Name.LocalName == "Cell" && (string?)cell.Attribute("N") == "TxtPinX");
+            var width = connector.Descendants().Single(cell =>
+                cell.Name.LocalName == "Cell" && (string?)cell.Attribute("N") == "Width");
+            var textPinValue = double.Parse((string)textPin.Attribute("V")!, System.Globalization.CultureInfo.InvariantCulture);
+            var widthValue = double.Parse((string)width.Attribute("V")!, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal(0.7, textPinValue / widthValue, 6);
+            Assert.Contains(source.Descendants(), row =>
+                row.Name.LocalName == "Row"
+                && ((string?)row.Attribute("N"))?.StartsWith("codex_source_", StringComparison.Ordinal) == true);
+            Assert.Contains(target.Descendants(), row =>
+                row.Name.LocalName == "Row" && (string?)row.Attribute("N") == "left");
+        }
+        finally
+        {
+            fixture.Dispose();
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
     [Trait("Category", "VisioIntegration")]
     [Fact]
     public void Connector_is_glued_to_both_semantic_shapes()
@@ -111,5 +178,13 @@ public sealed class ConnectorIntegrationTests
             TargetConnectionPoint: 1));
 
         Assert.Equal(2, result.ConnectionCount);
+    }
+
+    private static void AssertCell(XElement shape, string name, string value)
+    {
+        Assert.Contains(shape.Descendants(), cell =>
+            cell.Name.LocalName == "Cell"
+            && (string?)cell.Attribute("N") == name
+            && (string?)cell.Attribute("V") == value);
     }
 }
