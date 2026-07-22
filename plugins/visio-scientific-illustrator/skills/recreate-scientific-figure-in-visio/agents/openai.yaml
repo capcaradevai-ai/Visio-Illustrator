@@ -1,0 +1,4 @@
+interface:
+  display_name: "Microsoft Visio Scientific Figure"
+  short_description: "Recreate scientific figures as editable live Visio diagrams"
+  default_prompt: "Recreate this reference figure live in Microsoft Visio, preserve editable shapes and glued connectors, save VSDX, and export a review PNG."
