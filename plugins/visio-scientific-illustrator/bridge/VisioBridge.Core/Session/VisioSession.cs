@@ -16,17 +16,20 @@ public sealed class VisioSession : IVisioSession
     private readonly StaCommandDispatcher _dispatcher;
     private readonly string _sessionId = Guid.NewGuid().ToString("N");
     private readonly string _sessionTempRoot;
+    private readonly string _pluginRoot;
     private Visio.InvisibleApp? _application;
     private Visio.Document? _document;
     private Visio.Page? _page;
     private CanvasSpec? _canvas;
+    private MasterCatalog? _masterCatalog;
     private int? _boundPageId;
     private volatile SessionState _state = SessionState.Stopped;
     private bool _disposed;
 
-    public VisioSession()
+    public VisioSession(string? pluginRoot = null)
     {
         _dispatcher = new StaCommandDispatcher();
+        _pluginRoot = Path.GetFullPath(pluginRoot ?? Directory.GetCurrentDirectory());
         _sessionTempRoot = Path.Combine(
             Path.GetTempPath(),
             "visio-scientific-illustrator",
@@ -202,6 +205,21 @@ public sealed class VisioSession : IVisioSession
         }).GetAwaiter().GetResult();
     }
 
+    public GroupMutationResult GroupShapes(GroupShapesCommand command) =>
+        ExecuteUndoable(
+            "Codex group shapes",
+            () => CreateGroupingService().Group(command));
+
+    public UngroupMutationResult UngroupShape(UngroupShapeCommand command) =>
+        ExecuteUndoable(
+            "Codex ungroup shape",
+            () => CreateGroupingService().Ungroup(command));
+
+    public ContainerMutationResult AddToContainer(AddToContainerCommand command) =>
+        ExecuteUndoable(
+            "Codex add to container",
+            () => CreateGroupingService().AddToContainer(command));
+
     public void UndoLastForIntegrationTest()
     {
         ThrowIfDisposed();
@@ -238,6 +256,8 @@ public sealed class VisioSession : IVisioSession
 
             if (_application is not null)
             {
+                _masterCatalog?.Dispose();
+                _masterCatalog = null;
                 _application.Quit();
                 ReleaseCom(ref _application);
             }
@@ -253,6 +273,8 @@ public sealed class VisioSession : IVisioSession
 
         _dispatcher.InvokeAsync(() =>
         {
+            _masterCatalog?.Dispose();
+            _masterCatalog = null;
             ReleaseCom(ref _page);
             ReleaseCom(ref _document);
             ReleaseCom(ref _application);
@@ -536,7 +558,8 @@ public sealed class VisioSession : IVisioSession
         return new ShapeFactory(
             _page,
             new GeometryConverter(_canvas),
-            repository);
+            repository,
+            GetMasterCatalog());
     }
 
     private ConnectorService CreateConnectorService()
@@ -574,6 +597,26 @@ public sealed class VisioSession : IVisioSession
             repository,
             geometry,
             inspector));
+    }
+
+    private MasterCatalog GetMasterCatalog()
+    {
+        RequireReadyApplication();
+        return _masterCatalog ??= new MasterCatalog(
+            _application!,
+            Path.Combine(
+                _pluginRoot,
+                "assets",
+                "visio-scientific-masters.vssx"));
+    }
+
+    private VisioGroupingService CreateGroupingService()
+    {
+        RequireReadyApplication();
+        var accessor = new VisioShapeAccessor(() => _page!);
+        return new VisioGroupingService(
+            _page!,
+            new ShapeRepository(accessor));
     }
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)

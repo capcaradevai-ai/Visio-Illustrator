@@ -14,15 +14,18 @@ internal sealed class ShapeFactory
     private readonly Visio.Page _page;
     private readonly GeometryConverter _geometry;
     private readonly ShapeRepository _repository;
+    private readonly MasterCatalog _masterCatalog;
 
     public ShapeFactory(
         Visio.Page page,
         GeometryConverter geometry,
-        ShapeRepository repository)
+        ShapeRepository repository,
+        MasterCatalog masterCatalog)
     {
         _page = page;
         _geometry = geometry;
         _repository = repository;
+        _masterCatalog = masterCatalog;
     }
 
     public ShapeMutationResult Add(AddShapeCommand command)
@@ -34,6 +37,8 @@ internal sealed class ShapeFactory
             "rectangle" => DrawRectangle(box),
             "ellipse" => DrawEllipse(box),
             "text" => DrawRectangle(box),
+            _ when MasterCatalog.IsKnown(command.Shape) =>
+                _masterCatalog.Drop(_page, command.Shape, box.PinXInches, box.PinYInches),
             _ => throw BridgeCommandException.Unsupported($"不支持基础 Shape: {command.Shape}"),
         };
 
@@ -41,7 +46,10 @@ internal sealed class ShapeFactory
         {
             SetGeometry(shape, box);
             if (command.Label is not null) shape.Text = command.Label;
-            StyleMapper.ApplyTextDefaults(shape, command.Shape == "text");
+            if (command.Shape != "container")
+            {
+                StyleMapper.ApplyTextDefaults(shape, command.Shape == "text");
+            }
             StyleMapper.Apply(shape, command.Style);
             using var handle = new VisioShapeHandle(shape);
             _repository.Register(handle, command.SemanticId);

@@ -31,6 +31,12 @@ public interface IVisioSession : IDisposable
 
     SaveResult Save(SaveCommand command);
 
+    GroupMutationResult GroupShapes(GroupShapesCommand command);
+
+    UngroupMutationResult UngroupShape(UngroupShapeCommand command);
+
+    ContainerMutationResult AddToContainer(AddToContainerCommand command);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,

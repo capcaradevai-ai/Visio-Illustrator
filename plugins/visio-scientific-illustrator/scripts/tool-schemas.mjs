@@ -58,7 +58,13 @@ const connectorStyle = {
 
 const shapeProperties = {
   semantic_id: semanticId,
-  shape: { type: "string", enum: ["rectangle", "ellipse", "text"] },
+  shape: {
+    type: "string",
+    enum: [
+      "rectangle", "ellipse", "text", "rounded_rectangle", "diamond",
+      "cylinder", "hexagon", "triangle", "parallelogram", "cloud", "container",
+    ],
+  },
   bounds,
   label: { type: "string", maxLength: 10000 },
   style: shapeStyle,
@@ -326,6 +332,52 @@ export const liveTools = [
       properties: {
         confirm: { const: true },
         dirty_action: { type: "string", enum: ["save", "discard", "cancel"] },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_group_shapes",
+    description: "Group top-level shapes while retaining member semantic IDs.",
+    inputSchema: {
+      type: "object",
+      required: ["group_semantic_id", "member_semantic_ids"],
+      properties: {
+        group_semantic_id: semanticId,
+        member_semantic_ids: {
+          type: "array",
+          minItems: 2,
+          maxItems: 500,
+          items: semanticId,
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_ungroup_shape",
+    description: "Ungroup a Visio group and retain its member semantic IDs.",
+    inputSchema: {
+      type: "object",
+      required: ["group_semantic_id"],
+      properties: { group_semantic_id: semanticId },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_add_to_container",
+    description: "Add top-level shapes to a real Visio container.",
+    inputSchema: {
+      type: "object",
+      required: ["container_semantic_id", "member_semantic_ids"],
+      properties: {
+        container_semantic_id: semanticId,
+        member_semantic_ids: {
+          type: "array",
+          minItems: 1,
+          maxItems: 500,
+          items: semanticId,
+        },
       },
       additionalProperties: false,
     },

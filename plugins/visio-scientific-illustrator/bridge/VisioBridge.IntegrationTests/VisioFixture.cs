@@ -46,6 +46,15 @@ public sealed class VisioFixture : IDisposable
     public SaveResult Save(string outputPath, bool overwrite = false) =>
         _session.Save(new SaveCommand(outputPath, overwrite));
 
+    public GroupMutationResult GroupShapes(GroupShapesCommand command) =>
+        _session.GroupShapes(command);
+
+    public UngroupMutationResult UngroupShape(UngroupShapeCommand command) =>
+        _session.UngroupShape(command);
+
+    public ContainerMutationResult AddToContainer(AddToContainerCommand command) =>
+        _session.AddToContainer(command);
+
     public static VisioFixture WithOneShape()
     {
         var fixture = StartVisible();
@@ -61,7 +70,14 @@ public sealed class VisioFixture : IDisposable
 
     public static VisioFixture StartVisible()
     {
-        var session = new VisioSession();
+        var pluginRoot = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            ".."));
+        var session = new VisioSession(pluginRoot);
         try
         {
             session.LaunchNew("Figure", 1600, 1000, 96, true);

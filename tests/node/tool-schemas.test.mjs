@@ -26,6 +26,9 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_save",
     "visio_live_close_document",
     "visio_live_shutdown",
+    "visio_live_group_shapes",
+    "visio_live_ungroup_shape",
+    "visio_live_add_to_container",
   ]);
   assert.equal(JSON.stringify(liveTools).includes("drawio"), false);
   assert.deepEqual(fileTools.map((tool) => tool.name), [

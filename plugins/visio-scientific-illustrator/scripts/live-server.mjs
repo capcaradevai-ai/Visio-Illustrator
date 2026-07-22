@@ -71,6 +71,9 @@ async function handleTool(name, args) {
   if (name === "visio_live_save") return client.call("save", args);
   if (name === "visio_live_close_document") return client.call("close_document", args);
   if (name === "visio_live_shutdown") return client.call("shutdown", args);
+  if (name === "visio_live_group_shapes") return client.call("group_shapes", args);
+  if (name === "visio_live_ungroup_shape") return client.call("ungroup_shape", args);
+  if (name === "visio_live_add_to_container") return client.call("add_to_container", args);
   return { error: "UNSUPPORTED_OPERATION", message: `不支持工具: ${name}`, tool: name };
 }
 
