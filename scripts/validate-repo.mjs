@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const marketplacePath = path.join(root, ".agents", "plugins", "marketplace.json");
 const marketplace = JSON.parse(await fs.readFile(marketplacePath, "utf8"));
 
-if (marketplace.name !== "drawio-scientific-tools") throw new Error("Unexpected marketplace name.");
+if (marketplace.name !== "visio-scientific-tools") throw new Error("Unexpected marketplace name.");
 if (!Array.isArray(marketplace.plugins) || marketplace.plugins.length !== 1) throw new Error("Marketplace must expose exactly one plugin.");
 
 const entry = marketplace.plugins[0];
@@ -14,16 +14,19 @@ const pluginRoot = path.resolve(path.dirname(marketplacePath), "..", "..", entry
 const manifest = JSON.parse(await fs.readFile(path.join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
 const mcp = JSON.parse(await fs.readFile(path.join(pluginRoot, ".mcp.json"), "utf8"));
 
+if (entry.name !== "visio-scientific-illustrator") throw new Error("Unexpected plugin name.");
 if (entry.name !== manifest.name) throw new Error("Marketplace and manifest plugin names differ.");
-if (manifest.version !== "1.0.0") throw new Error("Unexpected public release version.");
-if (!mcp.mcpServers?.["drawio-live"] || !mcp.mcpServers?.["drawio-file-utils"]) throw new Error("Required MCP servers are missing.");
+if (manifest.version !== "0.1.0") throw new Error("Unexpected public release version.");
+if (!mcp.mcpServers?.["visio-live"] || !mcp.mcpServers?.["visio-file-utils"]) {
+  throw new Error("Required Visio MCP servers are missing.");
+}
 
 const files = [
   marketplacePath,
   path.join(pluginRoot, ".codex-plugin", "plugin.json"),
   path.join(pluginRoot, ".mcp.json"),
   path.join(pluginRoot, "scripts", "live-server.mjs"),
-  path.join(pluginRoot, "scripts", "server.mjs"),
+  path.join(pluginRoot, "scripts", "file-server.mjs"),
 ];
 
 for (const file of files) {

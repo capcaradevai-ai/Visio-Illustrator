@@ -1,14 +1,14 @@
 {
-  "name": "drawio-scientific-tools",
+  "name": "visio-scientific-tools",
   "interface": {
-    "displayName": "Draw.io Scientific Tools"
+    "displayName": "Visio Scientific Tools"
   },
   "plugins": [
     {
-      "name": "drawio-scientific-illustrator",
+      "name": "visio-scientific-illustrator",
       "source": {
         "source": "local",
-        "path": "./plugins/drawio-scientific-illustrator"
+        "path": "./plugins/visio-scientific-illustrator"
       },
       "policy": {
         "installation": "AVAILABLE",
