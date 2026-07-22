@@ -99,6 +99,18 @@ export const sceneGraphSchema = {
           target: semanticId,
           routing: { type: "string", enum: ["dynamic", "right_angle", "straight", "polyline"] },
           glued: { type: "boolean" },
+          label: { type: "string", maxLength: 10000 },
+          style: { type: "object" },
+          waypoints: {
+            type: "array", minItems: 1, maxItems: 1000,
+            items: {
+              type: "object", required: ["x", "y"],
+              properties: { x: { type: "number" }, y: { type: "number" } },
+              additionalProperties: false,
+            },
+          },
+          source_anchor: { type: "object" },
+          target_anchor: { type: "object" },
         },
         additionalProperties: false,
       },

@@ -1,0 +1,81 @@
+using System.IO.Compression;
+using System.Text;
+using VisioBridge.Contracts;
+using VisioBridge.Core.Import;
+using VisioBridge.Tests.Fakes;
+
+namespace VisioBridge.Tests;
+
+public sealed class DrawioSceneCompilerTests
+{
+    private const string Graph = """
+        <mxGraphModel pageWidth="800" pageHeight="500"><root>
+          <mxCell id="0"/><mxCell id="1" parent="0"/>
+          <mxCell id="a" parent="1" vertex="1" value="&lt;b&gt;Input&lt;sub&gt;SD&lt;/sub&gt;&lt;/b&gt;" style="rounded=1;html=1;fillColor=#112233;gradientColor=#DDEEFF;strokeColor=#445566;strokeWidth=2;fontFamily=Arial;fontSize=16;fontStyle=3;rotation=12;"><mxGeometry x="40" y="50" width="180" height="90" as="geometry"/></mxCell>
+          <mxCell id="b" parent="1" vertex="1" value="Output" style="ellipse;fillColor=#FFFFFF;strokeColor=#445566;"><mxGeometry x="500" y="50" width="160" height="90" as="geometry"/></mxCell>
+          <mxCell id="edge" parent="1" edge="1" source="a" target="b" value="flow" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#445566;strokeWidth=2;endArrow=block;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="340" y="95"/></Array></mxGeometry></mxCell>
+        </root></mxGraphModel>
+        """;
+
+    [Fact]
+    public void Uncompressed_drawio_maps_styles_text_anchors_and_waypoints()
+    {
+        using var directory = TestDirectory.Create();
+        var path = directory.WriteFile("figure.drawio", $"<mxfile><diagram name=\"Page-1\">{Graph}</diagram></mxfile>");
+
+        var result = new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path));
+
+        Assert.Equal(2, result.Statistics.SourceVertexCount);
+        Assert.Equal(1, result.Statistics.SourceEdgeCount);
+        var input = Assert.IsType<SceneShapeNode>(result.Scene.Nodes.Single(node => node.SemanticId == "a"));
+        Assert.Equal("gradient", input.Style?.Fill?.Kind);
+        Assert.Equal(12, input.Style?.RotationDeg);
+        Assert.Equal("InputSD", input.RichText?.Text);
+        Assert.True(input.RichText?.Runs?[0].Bold);
+        Assert.True(input.RichText?.Runs?[0].Italic);
+        Assert.Contains(input.RichText!.Runs!, run => run.Subscript == true && input.RichText.Text.Substring(run.Start, run.Length) == "SD");
+        var connector = Assert.Single(result.Scene.Connectors);
+        Assert.Equal("polyline", connector.Routing);
+        Assert.Single(connector.Waypoints!);
+        Assert.Equal(1, connector.SourceAnchor?.X);
+        Assert.Equal(0, connector.TargetAnchor?.X);
+    }
+
+    [Fact]
+    public void Standard_compressed_diagram_is_decoded()
+    {
+        using var directory = TestDirectory.Create();
+        var path = directory.WriteFile(
+            "compressed.drawio",
+            $"<mxfile><diagram name=\"Compressed\">{Compress(Graph)}</diagram></mxfile>");
+
+        var result = new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path));
+
+        Assert.Equal("Compressed", result.DiagramName);
+        Assert.Equal(2, result.Scene.Nodes.Count);
+        Assert.Single(result.Scene.Connectors);
+    }
+
+    [Fact]
+    public void Invalid_document_returns_stable_error()
+    {
+        using var directory = TestDirectory.Create();
+        var path = directory.WriteFile("bad.drawio", "not xml");
+
+        var error = Assert.Throws<VisioBridge.Core.BridgeCommandException>(() =>
+        {
+            _ = new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path));
+        });
+
+        Assert.Equal(VisioBridge.Core.BridgeErrorCodes.InvalidDrawioDocument, error.Code);
+    }
+
+    private static string Compress(string xml)
+    {
+        var encoded = Encoding.UTF8.GetBytes(Uri.EscapeDataString(xml));
+        using var output = new MemoryStream();
+        using (var deflate = new DeflateStream(output, CompressionLevel.SmallestSize, leaveOpen: true))
+            deflate.Write(encoded);
+        return Convert.ToBase64String(output.ToArray());
+    }
+}

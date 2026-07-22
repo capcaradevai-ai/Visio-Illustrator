@@ -35,6 +35,7 @@ async function handleTool(name, args) {
   if (name === "visio_validate") return client.call("validate", args);
   if (name === "visio_inspect_file") return client.call("inspect_file", args);
   if (name === "visio_export") return client.call("export", args, 120000);
+  if (name === "visio_compile_drawio_scene") return client.call("compile_drawio_scene", args, 120000);
   return {
     error: "UNSUPPORTED_OPERATION",
     message: `不支持工具: ${name}`,

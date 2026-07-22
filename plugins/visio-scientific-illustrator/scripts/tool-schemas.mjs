@@ -1118,6 +1118,19 @@ export const fileTools = [
       ],
     },
   },
+  {
+    name: "visio_compile_drawio_scene",
+    description: "Compile an uncompressed or standard-compressed draw.io diagram into a Scientific SceneGraph without creating a VSDX.",
+    inputSchema: {
+      type: "object",
+      required: ["input_path"],
+      properties: {
+        input_path: absolutePath("drawio", "Source draw.io document."),
+        diagram_name: { type: "string", minLength: 1, maxLength: 500 },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
 
 export function findTool(tools, name) {

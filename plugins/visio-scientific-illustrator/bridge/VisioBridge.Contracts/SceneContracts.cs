@@ -117,7 +117,12 @@ public sealed record SceneConnector(
     string Source,
     string Target,
     string Routing,
-    bool? Glued = null);
+    bool? Glued = null,
+    string? Label = null,
+    ConnectorStyle? Style = null,
+    IReadOnlyList<PixelPoint>? Waypoints = null,
+    [property: JsonPropertyName("source_anchor")] ConnectorAnchor? SourceAnchor = null,
+    [property: JsonPropertyName("target_anchor")] ConnectorAnchor? TargetAnchor = null);
 
 public sealed record SceneRegion(
     string Id,

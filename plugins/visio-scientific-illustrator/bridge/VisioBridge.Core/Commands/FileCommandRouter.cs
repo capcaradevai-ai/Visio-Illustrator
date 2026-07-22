@@ -1,6 +1,7 @@
 using System.Text.Json;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Files;
+using VisioBridge.Core.Import;
 
 namespace VisioBridge.Core.Commands;
 
@@ -15,6 +16,7 @@ public sealed class FileCommandRouter
         "validate" => _service.Validate(Deserialize<ValidateFileCommand>(parameters)),
         "inspect_file" => _service.Inspect(Deserialize<InspectFileCommand>(parameters)),
         "export" => _service.Export(Deserialize<ExportFileCommand>(parameters)),
+        "compile_drawio_scene" => new DrawioSceneCompiler().Compile(Deserialize<CompileDrawioSceneCommand>(parameters)),
         _ => throw BridgeCommandException.Unsupported($"file mode 不支持命令: {command}"),
     };
 

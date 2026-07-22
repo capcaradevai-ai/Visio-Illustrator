@@ -90,7 +90,12 @@ internal static class SceneExecutor
                     connector.SemanticId,
                     connector.Source,
                     connector.Target,
-                    Routing: connector.Routing),
+                    connector.Style,
+                    connector.Waypoints,
+                    connector.Label,
+                    connector.Routing,
+                    SourceAnchor: connector.SourceAnchor,
+                    TargetAnchor: connector.TargetAnchor),
                 300));
         }
 

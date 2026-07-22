@@ -27,4 +27,5 @@ public static class BridgeErrorCodes
     public const string SaveFailed = "SAVE_FAILED";
     public const string ValidationFailed = "VALIDATION_FAILED";
     public const string ExportFailed = "EXPORT_FAILED";
+    public const string InvalidDrawioDocument = "INVALID_DRAWIO_DOCUMENT";
 }
