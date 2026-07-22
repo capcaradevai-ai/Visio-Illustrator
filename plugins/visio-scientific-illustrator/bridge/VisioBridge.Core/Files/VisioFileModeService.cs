@@ -5,6 +5,7 @@ using VisioBridge.Contracts;
 using VisioBridge.Core.Export;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
+using VisioBridge.Core.Interop;
 using VisioBridge.Core.Session;
 using Visio = Microsoft.Office.Interop.Visio;
 
@@ -140,6 +141,10 @@ public sealed class VisioFileModeService : IDisposable
             catch (BridgeCommandException)
             {
                 throw;
+            }
+            catch (COMException error)
+            {
+                throw ComExceptionTranslator.Translate(error);
             }
             catch (Exception error)
             {

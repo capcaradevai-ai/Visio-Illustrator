@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Geometry;
+using VisioBridge.Core.Interop;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Inspection;
@@ -74,8 +75,13 @@ internal sealed class PageInspector
             master = shape.Master;
             masterName = master?.NameU;
         }
-        catch (COMException)
+        catch (COMException error)
         {
+            var translated = ComExceptionTranslator.Translate(error);
+            if (translated.Code == BridgeErrorCodes.VisioBusy)
+            {
+                throw translated;
+            }
             masterName = null;
         }
         finally

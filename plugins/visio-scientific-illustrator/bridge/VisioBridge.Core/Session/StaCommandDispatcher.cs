@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using VisioBridge.Core.Interop;
 
 namespace VisioBridge.Core.Session;
 
@@ -12,6 +13,7 @@ public sealed class StaCommandDispatcher : IDisposable
         TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly Thread _thread;
     private Control _control = null!;
+    private OleMessageFilter? _messageFilter;
     private uint _nativeThreadId;
     private bool _disposed;
 
@@ -97,6 +99,8 @@ public sealed class StaCommandDispatcher : IDisposable
         try
         {
             _nativeThreadId = GetCurrentThreadId();
+            _messageFilter = OleMessageFilter.Register(
+                new OleRetryPolicy(maxElapsedMs: 10_000, delayMs: 250));
             _control = new Control();
             _control.CreateControl();
             _ = _control.Handle;
@@ -110,6 +114,8 @@ public sealed class StaCommandDispatcher : IDisposable
         finally
         {
             _control?.Dispose();
+            _messageFilter?.Dispose();
+            _messageFilter = null;
         }
     }
 

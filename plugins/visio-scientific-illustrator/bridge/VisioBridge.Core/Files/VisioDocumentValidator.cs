@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using VisioBridge.Core.Abstractions;
+using VisioBridge.Core.Interop;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Files;
@@ -46,6 +47,10 @@ internal sealed class VisioDocumentValidator : IDocumentValidator
         catch (BridgeCommandException)
         {
             throw;
+        }
+        catch (COMException error)
+        {
+            throw ComExceptionTranslator.Translate(error);
         }
         catch (Exception error)
         {

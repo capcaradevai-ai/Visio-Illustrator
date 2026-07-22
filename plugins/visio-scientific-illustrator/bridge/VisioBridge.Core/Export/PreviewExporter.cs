@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
+using System.Runtime.InteropServices;
 using VisioBridge.Core.Abstractions;
+using VisioBridge.Core.Interop;
 
 namespace VisioBridge.Core.Export;
 
@@ -53,6 +55,10 @@ public sealed class PreviewExporter
         catch (BridgeCommandException)
         {
             throw;
+        }
+        catch (COMException error)
+        {
+            throw ComExceptionTranslator.Translate(error);
         }
         catch (Exception error)
         {

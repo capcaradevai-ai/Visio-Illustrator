@@ -4,6 +4,7 @@ using VisioBridge.Contracts;
 using VisioBridge.Core;
 using VisioBridge.Core.Commands;
 using VisioBridge.Core.Files;
+using VisioBridge.Core.Interop;
 using VisioBridge.Core.Session;
 
 var mode = ParseMode(args);
@@ -61,6 +62,15 @@ while ((line = Console.ReadLine()) is not null)
             BridgeErrorCodes.InvalidRequest,
             error.Message,
             false));
+    }
+    catch (COMException error)
+    {
+        var translated = ComExceptionTranslator.Translate(error);
+        response = new BridgeResponse(responseId, false, Error: new BridgeFailure(
+            translated.Code,
+            translated.Message,
+            translated.Retryable,
+            translated.Details));
     }
     catch (Exception error)
     {

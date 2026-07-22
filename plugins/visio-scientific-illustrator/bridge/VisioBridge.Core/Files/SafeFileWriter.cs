@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
+using VisioBridge.Core.Interop;
 
 namespace VisioBridge.Core.Files;
 
@@ -67,13 +69,16 @@ public sealed class SafeFileWriter
         catch (Exception error)
         {
             var restored = Restore(target, backup, existed);
-            var code = error is BridgeCommandException bridgeError
-                ? bridgeError.Code
+            var commandError = error as BridgeCommandException
+                ?? (error is COMException comError
+                    ? ComExceptionTranslator.Translate(comError)
+                    : null);
+            var code = commandError is not null
+                ? commandError.Code
                 : phase == "validation"
                     ? BridgeErrorCodes.ValidationFailed
                     : BridgeErrorCodes.SaveFailed;
-            var retryable = error is BridgeCommandException commandError
-                && commandError.Retryable;
+            var retryable = commandError?.Retryable ?? false;
             throw new BridgeCommandException(
                 code,
                 phase == "validation"
@@ -84,8 +89,8 @@ public sealed class SafeFileWriter
                 {
                     restored,
                     phase,
-                    reason = error.Message,
-                    original_details = (error as BridgeCommandException)?.Details,
+                    reason = commandError?.Message ?? error.Message,
+                    original_details = commandError?.Details,
                 });
         }
     }

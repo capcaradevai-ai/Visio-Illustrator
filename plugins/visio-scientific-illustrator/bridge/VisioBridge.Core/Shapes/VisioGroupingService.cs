@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
+using VisioBridge.Core.Interop;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Shapes;
@@ -45,6 +46,11 @@ internal sealed class VisioGroupingService
         }
         catch (COMException error)
         {
+            var translated = ComExceptionTranslator.Translate(error);
+            if (translated.Code == BridgeErrorCodes.VisioBusy)
+            {
+                throw translated;
+            }
             throw new BridgeCommandException(
                 BridgeErrorCodes.InvalidArgument,
                 "只能分组当前页面上的顶层 Shape。",
@@ -127,6 +133,11 @@ internal sealed class VisioGroupingService
         }
         catch (COMException error)
         {
+            var translated = ComExceptionTranslator.Translate(error);
+            if (translated.Code == BridgeErrorCodes.VisioBusy)
+            {
+                throw translated;
+            }
             throw new BridgeCommandException(
                 BridgeErrorCodes.InvalidArgument,
                 "只能把当前页面上的顶层 Shape 加入有效 Visio container。",

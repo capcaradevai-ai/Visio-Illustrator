@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using VisioBridge.Core.Interop;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Shapes;
@@ -61,6 +62,11 @@ public sealed class MasterCatalog : IDisposable
             }
             catch (COMException error)
             {
+                var translated = ComExceptionTranslator.Translate(error);
+                if (translated.Code == BridgeErrorCodes.VisioBusy)
+                {
+                    throw translated;
+                }
                 throw new BridgeCommandException(
                     BridgeErrorCodes.MasterNotFound,
                     $"Stencil 缺少 Master NameU: {masterName}",

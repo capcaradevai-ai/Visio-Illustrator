@@ -4,6 +4,7 @@ using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
+using VisioBridge.Core.Interop;
 using VisioBridge.Core.Export;
 using VisioBridge.Core.Files;
 using VisioBridge.Core.Shapes;
@@ -103,6 +104,11 @@ public sealed class VisioSession : IVisioSession
         }
         catch (COMException error)
         {
+            var translated = ComExceptionTranslator.Translate(error);
+            if (translated.Code == BridgeErrorCodes.VisioBusy)
+            {
+                throw translated;
+            }
             _state = SessionState.Invalidated;
             throw new BridgeCommandException(
                 BridgeErrorCodes.SessionInvalidated,
@@ -292,6 +298,11 @@ public sealed class VisioSession : IVisioSession
         {
             _state = SessionState.Faulted;
             TryQuitAfterLaunchFailure();
+            var translated = ComExceptionTranslator.Translate(error);
+            if (translated.Code == BridgeErrorCodes.VisioBusy)
+            {
+                throw translated;
+            }
             var code = error.HResult == unchecked((int)0x80040154)
                 ? BridgeErrorCodes.VisioNotInstalled
                 : BridgeErrorCodes.VisioStartFailed;
