@@ -21,8 +21,10 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_clear",
     "visio_live_add_shape",
     "visio_live_add_image",
+    "visio_live_add_path",
     "visio_live_add_connector",
     "visio_live_update_shape",
+    "visio_live_update_path",
     "visio_live_delete_shape",
     "visio_live_draw_sequence",
     "visio_live_inspect",
@@ -111,6 +113,53 @@ test("shape schema accepts editable rich text runs", () => {
 
   assert.doesNotThrow(() => validateSchema(input, addShape.inputSchema));
   assert.throws(() => validateSchema({ ...input, label: "duplicate" }, addShape.inputSchema));
+});
+
+test("path schemas expose bounded editable Geometry sections and strict commands", () => {
+  const addPath = liveTools.find((tool) => tool.name === "visio_live_add_path");
+  const updatePath = liveTools.find((tool) => tool.name === "visio_live_update_path");
+  const input = {
+    semantic_id: "wave-and-arc",
+    bounds: { x: 20, y: 30, width: 500, height: 240 },
+    sections: [
+      {
+        commands: [
+          { op: "M", x: 0, y: 120 },
+          { op: "C", x: 250, y: 120, x1: 60, y1: 20, x2: 180, y2: 220 },
+          { op: "A", x: 500, y: 120, rx: 125, ry: 80, rotation_deg: 15, large_arc: false, sweep: true },
+        ],
+      },
+    ],
+    style: { line: { color: "#245B91", width_pt: 1.5 }, fill: { kind: "none" } },
+  };
+
+  assert.doesNotThrow(() => validateSchema(input, addPath.inputSchema));
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: input.semantic_id,
+    sections: input.sections,
+  }, updatePath.inputSchema));
+  assert.throws(() => validateSchema({
+    ...input,
+    sections: Array.from({ length: 33 }, () => input.sections[0]),
+  }, addPath.inputSchema));
+  assert.throws(() => validateSchema({
+    ...input,
+    sections: [{ commands: Array.from({ length: 2001 }, () => ({ op: "M", x: 0, y: 0 })) }],
+  }, addPath.inputSchema));
+  assert.throws(() => validateSchema({
+    ...input,
+    sections: [{ commands: [{ op: "A", x: 10, y: 10, rx: 5, ry: 5, large_arc: false }] }],
+  }, addPath.inputSchema));
+  assert.throws(() => validateSchema({ semantic_id: input.semantic_id }, updatePath.inputSchema));
+
+  const sequence = liveTools.find((tool) => tool.name === "visio_live_draw_sequence");
+  assert.doesNotThrow(() => validateSchema({
+    operations: [
+      { type: "path", ...input },
+      { type: "path_update", semantic_id: input.semantic_id, sections: input.sections },
+    ],
+    step_delay_ms: 500,
+  }, sequence.inputSchema));
 });
 
 test("launch open mode requires a file path", () => {

@@ -15,6 +15,10 @@ public interface IVisioSession : IDisposable
 
     ShapeMutationResult AddImage(AddImageCommand command);
 
+    PathMutationResult AddPath(AddPathCommand command);
+
+    PathMutationResult UpdatePath(UpdatePathCommand command);
+
     ConnectorMutationResult AddConnector(AddConnectorCommand command);
 
     PageInspectionResult Inspect(int maxShapes);

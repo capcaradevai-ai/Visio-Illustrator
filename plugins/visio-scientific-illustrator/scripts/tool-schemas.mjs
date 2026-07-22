@@ -179,6 +179,100 @@ const richText = {
   additionalProperties: false,
 };
 
+const localCoordinate = { type: "number", minimum: 0 };
+
+const pathCommand = {
+  oneOf: [
+    {
+      type: "object",
+      required: ["op", "x", "y"],
+      properties: { op: { const: "M" }, x: localCoordinate, y: localCoordinate },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["op", "x", "y"],
+      properties: { op: { const: "L" }, x: localCoordinate, y: localCoordinate },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["op", "x", "y", "x1", "y1", "x2", "y2"],
+      properties: {
+        op: { const: "C" },
+        x: localCoordinate,
+        y: localCoordinate,
+        x1: localCoordinate,
+        y1: localCoordinate,
+        x2: localCoordinate,
+        y2: localCoordinate,
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["op", "x", "y", "rx", "ry", "rotation_deg", "large_arc", "sweep"],
+      properties: {
+        op: { const: "A" },
+        x: localCoordinate,
+        y: localCoordinate,
+        rx: { type: "number", exclusiveMinimum: 0 },
+        ry: { type: "number", exclusiveMinimum: 0 },
+        rotation_deg: { type: "number", minimum: -360, maximum: 360 },
+        large_arc: { type: "boolean" },
+        sweep: { type: "boolean" },
+      },
+      additionalProperties: false,
+    },
+    {
+      type: "object",
+      required: ["op"],
+      properties: { op: { const: "Z" } },
+      additionalProperties: false,
+    },
+  ],
+};
+
+const pathSection = {
+  type: "object",
+  required: ["commands"],
+  properties: {
+    commands: { type: "array", minItems: 1, maxItems: 2000, items: pathCommand },
+    closed: { type: "boolean" },
+    filled: { type: "boolean" },
+  },
+  additionalProperties: false,
+};
+
+const pathSections = {
+  type: "array",
+  minItems: 1,
+  maxItems: 32,
+  items: pathSection,
+};
+
+const addPathProperties = {
+  semantic_id: semanticId,
+  bounds,
+  sections: pathSections,
+  style: shapeStyle,
+};
+
+const updatePathProperties = {
+  semantic_id: semanticId,
+  bounds,
+  sections: pathSections,
+  style: shapeStyle,
+};
+
+const updatePathRequirement = {
+  anyOf: [
+    { required: ["bounds"] },
+    { required: ["sections"] },
+    { required: ["style"] },
+  ],
+};
+
 const connectorStyle = {
   type: "object",
   properties: {
@@ -292,12 +386,25 @@ const sequenceOperations = {
         },
         additionalProperties: false,
       },
+      {
+        type: "object",
+        required: ["type", "semantic_id", "bounds", "sections"],
+        properties: { type: { const: "path" }, ...addPathProperties },
+        additionalProperties: false,
+      },
       connectorSchema({ type: { const: "connector" } }, ["type"]),
       {
         type: "object",
         required: ["type", "semantic_id"],
         properties: { type: { const: "update" }, ...updateProperties },
         not: labelRichTextExclusion,
+        additionalProperties: false,
+      },
+      {
+        type: "object",
+        required: ["type", "semantic_id"],
+        properties: { type: { const: "path_update" }, ...updatePathProperties },
+        ...updatePathRequirement,
         additionalProperties: false,
       },
       {
@@ -426,6 +533,16 @@ export const liveTools = [
     },
   },
   {
+    name: "visio_live_add_path",
+    description: "Add editable M/L/C/A/Z geometry as one Visio shape with up to 32 Geometry sections.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_id", "bounds", "sections"],
+      properties: addPathProperties,
+      additionalProperties: false,
+    },
+  },
+  {
     name: "visio_live_add_connector",
     description: "Add a 1D Visio connector glued to two semantic shapes.",
     inputSchema: connectorSchema(),
@@ -438,6 +555,17 @@ export const liveTools = [
       required: ["semantic_id"],
       properties: updateProperties,
       not: labelRichTextExclusion,
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_update_path",
+    description: "Update editable Geometry sections, bounds, or style without replacing the Visio shape.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_id"],
+      properties: updatePathProperties,
+      ...updatePathRequirement,
       additionalProperties: false,
     },
   },

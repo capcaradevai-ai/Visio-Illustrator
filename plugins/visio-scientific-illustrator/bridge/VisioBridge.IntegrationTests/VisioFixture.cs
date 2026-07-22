@@ -25,6 +25,10 @@ public sealed class VisioFixture : IDisposable
 
     public ShapeMutationResult AddShape(AddShapeCommand command) => _session.AddShape(command);
 
+    public PathMutationResult AddPath(AddPathCommand command) => _session.AddPath(command);
+
+    public PathMutationResult UpdatePath(UpdatePathCommand command) => _session.UpdatePath(command);
+
     public ConnectorMutationResult AddConnector(AddConnectorCommand command) =>
         _session.AddConnector(command);
 

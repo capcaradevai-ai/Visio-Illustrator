@@ -120,6 +120,12 @@ public sealed class VisioSession : IVisioSession
     public ShapeMutationResult AddImage(AddImageCommand command)
         => ExecuteUndoable("Codex add image", () => CreateShapeFactory().AddImage(command));
 
+    public PathMutationResult AddPath(AddPathCommand command)
+        => ExecuteUndoable("Codex add path", () => CreateFreeformBuilder().Add(command));
+
+    public PathMutationResult UpdatePath(UpdatePathCommand command)
+        => ExecuteUndoable("Codex update path", () => CreateFreeformBuilder().Update(command));
+
     public ConnectorMutationResult AddConnector(AddConnectorCommand command)
         => ExecuteUndoable(
             "Codex add connector",
@@ -812,6 +818,18 @@ public sealed class VisioSession : IVisioSession
             repository,
             GetMasterCatalog(),
             new PageInspector(_document!, _page, geometry));
+    }
+
+    private FreeformBuilder CreateFreeformBuilder()
+    {
+        RequireReadyApplication();
+        var geometry = new GeometryConverter(_canvas!);
+        var accessor = new VisioShapeAccessor(() => _page!);
+        return new FreeformBuilder(
+            _page!,
+            geometry,
+            new ShapeRepository(accessor),
+            new PageInspector(_document!, _page!, geometry));
     }
 
     private ConnectorService CreateConnectorService()

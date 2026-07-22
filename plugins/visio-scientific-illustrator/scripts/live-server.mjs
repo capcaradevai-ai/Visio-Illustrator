@@ -62,8 +62,10 @@ async function handleTool(name, args) {
   if (name === "visio_live_clear") return client.call("clear", args);
   if (name === "visio_live_add_shape") return client.call("add_shape", args);
   if (name === "visio_live_add_image") return client.call("add_image", args);
+  if (name === "visio_live_add_path") return client.call("add_path", args);
   if (name === "visio_live_add_connector") return client.call("add_connector", args);
   if (name === "visio_live_update_shape") return client.call("update_shape", args);
+  if (name === "visio_live_update_path") return client.call("update_path", args);
   if (name === "visio_live_delete_shape") return client.call("delete_shape", args);
   if (name === "visio_live_inspect") return client.call("inspect", args);
   if (name === "visio_live_fit") return client.call("fit", args);
@@ -110,8 +112,10 @@ async function drawSequence(client, args) {
         const command = {
           shape: "add_shape",
           image: "add_image",
+          path: "add_path",
           connector: "add_connector",
           update: "update_shape",
+          path_update: "update_path",
           delete: "delete_shape",
           fit: "fit",
         }[type];

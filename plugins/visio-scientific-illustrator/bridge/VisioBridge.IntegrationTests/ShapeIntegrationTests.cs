@@ -8,6 +8,87 @@ public sealed class ShapeIntegrationTests
 {
     [Trait("Category", "VisioIntegration")]
     [Fact]
+    public void Editable_geometry_sections_survive_path_update_and_vsdx_save()
+    {
+        var fixture = VisioFixture.StartVisible();
+        var output = Path.Combine(Path.GetTempPath(), $"visio-path-{Guid.NewGuid():N}.vsdx");
+        try
+        {
+            var added = fixture.AddPath(new AddPathCommand(
+                "scientific-path",
+                new PixelBox(100, 100, 800, 500),
+                [
+                    WaveSection(110),
+                    WaveSection(210),
+                    new PathSection(
+                        [
+                            new ScenePathCommand("M", 550, 80),
+                            new ScenePathCommand("A", 650, 80, Rx: 50, Ry: 50, RotationDeg: 0, LargeArc: false, Sweep: true),
+                            new ScenePathCommand("L", 620, 350),
+                            new ScenePathCommand("L", 580, 350),
+                            new ScenePathCommand("Z"),
+                        ],
+                        Closed: true,
+                        Filled: true),
+                ],
+                new ShapeStyle(
+                    Fill: new FillStyle("solid", Color: "#D9E8FB"),
+                    Line: new LineStyle(Color: "#245B91", WidthPt: 1.5))));
+
+            var updated = fixture.UpdatePath(new UpdatePathCommand(
+                "scientific-path",
+                Sections:
+                [
+                    WaveSection(100),
+                    WaveSection(200),
+                    new PathSection(
+                        [
+                            new ScenePathCommand("M", 550, 70),
+                            new ScenePathCommand("A", 650, 70, Rx: 50, Ry: 50, RotationDeg: 0, LargeArc: false, Sweep: true),
+                            new ScenePathCommand("L", 625, 360),
+                            new ScenePathCommand("L", 575, 360),
+                            new ScenePathCommand("Z"),
+                        ],
+                        Closed: true,
+                        Filled: true),
+                ]));
+
+            Assert.Equal(added.ShapeId, updated.ShapeId);
+            Assert.Equal(3, updated.SectionCount);
+            fixture.Save(output);
+            fixture.Dispose();
+
+            using var archive = ZipFile.OpenRead(output);
+            var page = archive.GetEntry("visio/pages/page1.xml");
+            Assert.NotNull(page);
+            using var reader = new StreamReader(page.Open());
+            var xml = XDocument.Parse(reader.ReadToEnd());
+            var geometrySections = xml.Descendants()
+                .Where(element => element.Name.LocalName == "Section"
+                    && ((string?)element.Attribute("N"))?.StartsWith("Geometry", StringComparison.Ordinal) == true)
+                .ToArray();
+            var rowTypes = geometrySections
+                .SelectMany(section => section.Elements().Where(element => element.Name.LocalName == "Row"))
+                .Select(row => (string?)row.Attribute("T"))
+                .ToArray();
+
+            Assert.Equal(3, geometrySections.Length);
+            Assert.Contains("RelCubBezTo", rowTypes);
+            Assert.Contains("RelEllipticalArcTo", rowTypes);
+            Assert.Contains(geometrySections, section => section.Elements()
+                .Any(element => element.Name.LocalName == "Cell"
+                    && (string?)element.Attribute("N") == "NoFill"
+                    && (string?)element.Attribute("V") == "0"));
+        }
+        finally
+        {
+            fixture.Dispose();
+            if (File.Exists(output)) File.Delete(output);
+        }
+    }
+
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
     public void Rich_text_character_runs_survive_vsdx_save()
     {
         var fixture = VisioFixture.StartVisible();
@@ -100,4 +181,10 @@ public sealed class ShapeIntegrationTests
         Assert.Equal("encoder", result.SemanticId);
         Assert.Equal(1, fixture.GetStatus().ShapeCount);
     }
+
+    private static PathSection WaveSection(double y) => new([
+        new ScenePathCommand("M", 20, y),
+        new ScenePathCommand("C", 250, y, 70, y - 70, 160, y + 70),
+        new ScenePathCommand("C", 500, y, 340, y - 70, 430, y + 70),
+    ]);
 }
