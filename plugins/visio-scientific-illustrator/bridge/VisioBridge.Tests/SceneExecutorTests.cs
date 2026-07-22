@@ -7,7 +7,7 @@ namespace VisioBridge.Tests;
 public sealed class SceneExecutorTests
 {
     [Fact]
-    public void Scene_plan_orders_content_connectors_labels_z_order_and_checkpoints()
+    public void Scene_plan_orders_content_labels_connectors_z_order_and_checkpoints()
     {
         var scene = new ScientificScene(
             "scene",
@@ -27,7 +27,7 @@ public sealed class SceneExecutorTests
 
         Assert.Equal("ensure_layers", plan.Steps[0].Command);
         Assert.True(IndexOf(plan, "add_shape", "background") < IndexOf(plan, "add_shape", "a"));
-        Assert.True(IndexOf(plan, "add_connector", "flow") < IndexOf(plan, "add_shape", "label"));
+        Assert.True(IndexOf(plan, "add_shape", "label") < IndexOf(plan, "add_connector", "flow"));
         Assert.True(IndexOf(plan, "add_shape", "label") < IndexOf(plan, "set_z_order", "label"));
         Assert.True(plan.Steps[^1].CheckpointAfter);
     }

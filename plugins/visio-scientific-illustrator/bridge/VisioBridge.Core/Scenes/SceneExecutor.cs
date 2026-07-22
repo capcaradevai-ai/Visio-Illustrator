@@ -163,7 +163,9 @@ internal static class SceneExecutor
     {
         if (node.Role == "background") return 0;
         if (node.Role?.Contains("panel", StringComparison.Ordinal) == true) return 100;
-        if (node is SceneTextNode) return 400;
+        // 先创建标签再创建连接线，使 Visio 只需按最终页面障碍完成一次路由，
+        // 避免每新增一个文字 Shape 都重新计算全部连接线。
+        if (node is SceneTextNode) return 240;
         return 200;
     }
 
