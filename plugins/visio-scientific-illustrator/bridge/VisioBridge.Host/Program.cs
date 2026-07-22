@@ -3,7 +3,16 @@ using System.Text.Json;
 using VisioBridge.Contracts;
 using VisioBridge.Core;
 using VisioBridge.Core.Commands;
+using VisioBridge.Core.Files;
 using VisioBridge.Core.Session;
+
+var mode = ParseMode(args);
+if (mode is null)
+{
+    Console.Error.WriteLine("Usage: VisioBridge.exe --mode live|file");
+    Environment.ExitCode = 2;
+    return;
+}
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 Console.WriteLine(JsonSerializer.Serialize(
@@ -14,8 +23,12 @@ Console.WriteLine(JsonSerializer.Serialize(
         RuntimeInformation.ProcessArchitecture.ToString()),
     ProtocolJson.Options));
 
-using var session = new VisioSession();
-var router = new CommandRouter(session);
+using IDisposable owner = mode == "live"
+    ? new VisioSession()
+    : new VisioFileModeService();
+Func<string, JsonElement, object> route = mode == "live"
+    ? new CommandRouter((VisioSession)owner).Route
+    : new FileCommandRouter((VisioFileModeService)owner).Route;
 
 string? line;
 while ((line = Console.ReadLine()) is not null)
@@ -32,7 +45,7 @@ while ((line = Console.ReadLine()) is not null)
         response = new BridgeResponse(
             request.Id,
             true,
-            router.Route(request.Command, request.Params));
+            route(request.Command, request.Params));
     }
     catch (BridgeCommandException error)
     {
@@ -58,4 +71,10 @@ while ((line = Console.ReadLine()) is not null)
     }
 
     Console.WriteLine(JsonSerializer.Serialize(response, ProtocolJson.Options));
+}
+
+static string? ParseMode(string[] arguments)
+{
+    if (arguments.Length != 2 || arguments[0] != "--mode") return null;
+    return arguments[1] is "live" or "file" ? arguments[1] : null;
 }
