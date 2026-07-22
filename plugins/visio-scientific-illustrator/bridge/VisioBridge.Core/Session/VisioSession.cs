@@ -1,6 +1,9 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
+using VisioBridge.Core.Geometry;
+using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Session;
@@ -13,6 +16,7 @@ public sealed class VisioSession : IVisioSession
     private Visio.InvisibleApp? _application;
     private Visio.Document? _document;
     private Visio.Page? _page;
+    private CanvasSpec? _canvas;
     private int? _boundPageId;
     private volatile SessionState _state = SessionState.Stopped;
     private bool _disposed;
@@ -99,6 +103,22 @@ public sealed class VisioSession : IVisioSession
                 "Visio 会话已失效。",
                 details: new { hresult = error.HResult });
         }
+    }
+
+    public ShapeMutationResult AddShape(AddShapeCommand command)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() => CreateShapeFactory().Add(command))
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    public ShapeMutationResult AddImage(AddImageCommand command)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() => CreateShapeFactory().AddImage(command))
+            .GetAwaiter()
+            .GetResult();
     }
 
     public void CloseDocument(string action)
@@ -239,6 +259,7 @@ public sealed class VisioSession : IVisioSession
         bool maximize)
     {
         _boundPageId = _page!.ID;
+        _canvas = new CanvasSpec(widthPx, heightPx, dpi);
         _application!.Visible = true;
         if (maximize)
         {
@@ -261,7 +282,7 @@ public sealed class VisioSession : IVisioSession
             _application.Version,
             _document!.Name,
             _page.Name,
-            new CanvasSpec(widthPx, heightPx, dpi),
+            _canvas!,
             _sessionTempRoot);
     }
 
@@ -346,6 +367,7 @@ public sealed class VisioSession : IVisioSession
         ReleaseCom(ref _page);
         ReleaseCom(ref _document);
         _boundPageId = null;
+        _canvas = null;
         _state = SessionState.Stopped;
         return false;
     }
@@ -410,6 +432,22 @@ public sealed class VisioSession : IVisioSession
                 BridgeErrorCodes.InvalidArgument,
                 "当前会话已经启动。");
         }
+    }
+
+    private ShapeFactory CreateShapeFactory()
+    {
+        if (_state != SessionState.Ready || _page is null || _canvas is null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SessionNotReady,
+                "Visio 会话尚未准备好。");
+        }
+        var accessor = new VisioShapeAccessor(() => _page!);
+        var repository = new ShapeRepository(accessor);
+        return new ShapeFactory(
+            _page,
+            new GeometryConverter(_canvas),
+            repository);
     }
 
     private static void ValidateCanvas(string pageName, int widthPx, int heightPx, int dpi)

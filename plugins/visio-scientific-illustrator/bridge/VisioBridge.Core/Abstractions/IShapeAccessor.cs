@@ -18,4 +18,6 @@ public interface IShapeHandle : IDisposable
     string? UserCodexId { get; set; }
 
     string NameU { get; set; }
+
+    string Text { get; set; }
 }

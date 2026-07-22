@@ -1,3 +1,4 @@
+using VisioBridge.Contracts;
 using VisioBridge.Core.Commands;
 using VisioBridge.Core.Session;
 
@@ -18,6 +19,10 @@ public sealed class VisioFixture : IDisposable
 
     public int OwnedProcessId => _session.OwnedProcessId
         ?? throw new InvalidOperationException("Fixture 没有 owned Visio PID。");
+
+    public ShapeMutationResult AddShape(AddShapeCommand command) => _session.AddShape(command);
+
+    public SessionStatus GetStatus() => _session.GetStatus();
 
     public static VisioFixture StartVisible()
     {

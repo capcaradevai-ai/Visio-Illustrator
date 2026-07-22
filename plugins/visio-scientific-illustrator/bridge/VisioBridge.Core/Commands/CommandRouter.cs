@@ -18,6 +18,8 @@ public sealed class CommandRouter
         "launch_new" => LaunchNew(Deserialize<LaunchNewCommand>(parameters)),
         "open_document" => OpenDocument(Deserialize<OpenDocumentCommand>(parameters)),
         "status" => _session.GetStatus(),
+        "add_shape" => _session.AddShape(Deserialize<AddShapeCommand>(parameters)),
+        "add_image" => _session.AddImage(Deserialize<AddImageCommand>(parameters)),
         "shutdown" => Shutdown(Deserialize<ShutdownCommand>(parameters)),
         _ => throw BridgeCommandException.Unsupported($"不支持命令: {command}"),
     };

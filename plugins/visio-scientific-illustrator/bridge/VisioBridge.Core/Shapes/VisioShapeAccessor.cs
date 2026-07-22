@@ -47,12 +47,12 @@ internal sealed class VisioShapeAccessor : IShapeAccessor
 
                 var children = shape.Shapes;
                 if (children.Count > 0) Enumerate(children, output);
-                else Marshal.FinalReleaseComObject(children);
+                else Marshal.ReleaseComObject(children);
             }
         }
         finally
         {
-            Marshal.FinalReleaseComObject(shapes);
+            Marshal.ReleaseComObject(shapes);
         }
     }
 }
@@ -83,7 +83,7 @@ internal sealed class VisioShapeHandle : IShapeHandle
             }
             finally
             {
-                Marshal.FinalReleaseComObject(cell);
+                Marshal.ReleaseComObject(cell);
             }
         }
         set
@@ -109,7 +109,7 @@ internal sealed class VisioShapeHandle : IShapeHandle
             }
             finally
             {
-                Marshal.FinalReleaseComObject(cell);
+                Marshal.ReleaseComObject(cell);
             }
         }
     }
@@ -120,13 +120,19 @@ internal sealed class VisioShapeHandle : IShapeHandle
         set => Shape.NameU = value;
     }
 
+    public string Text
+    {
+        get => Shape.Text;
+        set => Shape.Text = value;
+    }
+
     internal Visio.Shape Shape => _shape
         ?? throw new ObjectDisposedException(nameof(VisioShapeHandle));
 
     public void Dispose()
     {
         if (_shape is null) return;
-        Marshal.FinalReleaseComObject(_shape);
+        Marshal.ReleaseComObject(_shape);
         _shape = null;
     }
 }

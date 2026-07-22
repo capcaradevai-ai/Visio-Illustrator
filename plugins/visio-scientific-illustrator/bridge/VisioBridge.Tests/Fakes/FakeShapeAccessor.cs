@@ -16,6 +16,8 @@ internal sealed class FakeShape : IShapeHandle
 
     public string NameU { get; set; } = string.Empty;
 
+    public string Text { get; set; } = string.Empty;
+
     public void Dispose()
     {
     }

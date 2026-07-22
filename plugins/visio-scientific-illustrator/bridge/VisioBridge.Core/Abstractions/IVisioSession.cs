@@ -1,3 +1,4 @@
+using VisioBridge.Contracts;
 using VisioBridge.Core.Session;
 
 namespace VisioBridge.Core.Abstractions;
@@ -9,6 +10,10 @@ public interface IVisioSession : IDisposable
     int? OwnedProcessId { get; }
 
     SessionStatus GetStatus();
+
+    ShapeMutationResult AddShape(AddShapeCommand command);
+
+    ShapeMutationResult AddImage(AddImageCommand command);
 
     LaunchResult LaunchNew(
         string pageName,
