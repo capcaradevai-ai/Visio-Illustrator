@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { comparePngBuffers, encodePng } from "../../plugins/visio-scientific-illustrator/scripts/visual-compare.mjs";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { comparePngBuffers, comparePngFiles, encodePng } from "../../plugins/visio-scientific-illustrator/scripts/visual-compare.mjs";
 
 function image(width, height, painter) {
   const pixels = new Uint8Array(width * height * 4).fill(255);
@@ -44,4 +47,28 @@ test("small translation is tolerated more than deletion and color shift is repor
   const recolored = comparePngBuffers(reference, square(0, [180, 90, 30]));
   assert.ok(shifted.edge_f1 > 0.9);
   assert.ok(recolored.mean_delta_e76 > 20);
+});
+
+test("logical regions are measured independently from the global canvas", async () => {
+  const reference = image(80, 40, (pixels, width) => {
+    for (let y = 5; y < 35; y += 1) for (let x = 5; x < 35; x += 1) setPixel(pixels, width, x, y, [20, 80, 150]);
+    for (let y = 5; y < 35; y += 1) for (let x = 45; x < 75; x += 1) setPixel(pixels, width, x, y, [170, 80, 20]);
+  });
+  const candidate = image(80, 40, (pixels, width) => {
+    for (let y = 5; y < 35; y += 1) for (let x = 5; x < 35; x += 1) setPixel(pixels, width, x, y, [20, 80, 150]);
+  });
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "visio-regions-"));
+  try {
+    const referencePath = path.join(directory, "reference.png");
+    const candidatePath = path.join(directory, "candidate.png");
+    await Promise.all([fs.writeFile(referencePath, reference), fs.writeFile(candidatePath, candidate)]);
+    const metrics = await comparePngFiles(referencePath, candidatePath, null, [
+      { id: "left", x: 0, y: 0, width: 40, height: 40 },
+      { id: "right", x: 40, y: 0, width: 40, height: 40 },
+    ]);
+    assert.equal(metrics.regions[0].edge_f1, 1);
+    assert.equal(metrics.regions[1].edge_recall, 0);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
 });

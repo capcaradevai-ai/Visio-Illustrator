@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import zlib from "node:zlib";
 
-export async function comparePngFiles(referencePath, candidatePath, heatmapPath) {
+export async function comparePngFiles(referencePath, candidatePath, heatmapPath, regions = []) {
   const [referenceBuffer, candidateBuffer] = await Promise.all([
     fs.readFile(referencePath),
     fs.readFile(candidatePath),
@@ -10,8 +10,26 @@ export async function comparePngFiles(referencePath, candidatePath, heatmapPath)
   if (heatmapPath) {
     await fs.writeFile(heatmapPath, encodePng(result.width, result.height, result.heatmap));
   }
+  const reference = decodePng(referenceBuffer);
+  const candidate = decodePng(candidateBuffer);
+  const regionMetrics = regions.map((region) => {
+    validateRegion(region, reference.width, reference.height);
+    const referenceCrop = crop(reference, region);
+    const candidateCrop = crop(candidate, region);
+    const compared = comparePngBuffers(
+      encodePng(region.width, region.height, referenceCrop.data),
+      encodePng(region.width, region.height, candidateCrop.data),
+    );
+    const { heatmap: regionHeatmap, ...values } = compared;
+    return { id: region.id, bounds: { x: region.x, y: region.y, width: region.width, height: region.height }, ...values };
+  });
   const { heatmap, ...metrics } = result;
-  return { ...metrics, heatmap_path: heatmapPath ?? null };
+  return {
+    canvas: { aspect_ratio_error: 0 },
+    ...metrics,
+    regions: regionMetrics,
+    heatmap_path: heatmapPath ?? null,
+  };
 }
 
 export function comparePngBuffers(referenceBuffer, candidateBuffer) {
@@ -92,6 +110,26 @@ export function encodePng(width, height, rgba) {
   ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
   return Buffer.concat([signature, chunk("IHDR", ihdr), chunk("IDAT", zlib.deflateSync(scanlines)), chunk("IEND", Buffer.alloc(0))]);
+}
+
+function validateRegion(region, width, height) {
+  if (!region || typeof region.id !== "string" || region.id.length === 0
+      || !Number.isInteger(region.x) || !Number.isInteger(region.y)
+      || !Number.isInteger(region.width) || !Number.isInteger(region.height)
+      || region.x < 0 || region.y < 0 || region.width <= 0 || region.height <= 0
+      || region.x + region.width > width || region.y + region.height > height) {
+    throw new Error(`INVALID_COMPARE_REGION: ${region?.id ?? "unknown"}`);
+  }
+}
+
+function crop(image, region) {
+  const data = new Uint8Array(region.width * region.height * 4);
+  for (let y = 0; y < region.height; y += 1) {
+    const source = ((region.y + y) * image.width + region.x) * 4;
+    const target = y * region.width * 4;
+    data.set(image.data.subarray(source, source + region.width * 4), target);
+  }
+  return { width: region.width, height: region.height, data };
 }
 
 export function decodePng(buffer) {

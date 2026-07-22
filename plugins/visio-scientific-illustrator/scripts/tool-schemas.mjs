@@ -1142,6 +1142,19 @@ export const fileTools = [
         candidate_path: absolutePath("png", "Candidate PNG."),
         heatmap_path: absolutePath("png", "Optional difference heatmap output."),
         overwrite: { type: "boolean", default: false },
+        regions: {
+          type: "array", maxItems: 64, items: {
+            type: "object", required: ["id", "x", "y", "width", "height"],
+            properties: {
+              id: { type: "string", minLength: 1, maxLength: 200 },
+              x: { type: "integer", minimum: 0 },
+              y: { type: "integer", minimum: 0 },
+              width: { type: "integer", minimum: 1 },
+              height: { type: "integer", minimum: 1 },
+            },
+            additionalProperties: false,
+          },
+        },
       },
       additionalProperties: false,
     },

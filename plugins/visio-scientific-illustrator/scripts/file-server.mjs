@@ -44,7 +44,7 @@ async function handleTool(name, args) {
         if (error?.code !== "ENOENT") throw error;
       }
     }
-    return comparePngFiles(args.reference_path, args.candidate_path, args.heatmap_path);
+    return comparePngFiles(args.reference_path, args.candidate_path, args.heatmap_path, args.regions);
   }
   const client = await getBridgeClient();
   if (name === "visio_validate") return client.call("validate", args);
