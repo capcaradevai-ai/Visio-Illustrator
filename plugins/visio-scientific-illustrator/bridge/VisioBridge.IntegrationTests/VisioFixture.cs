@@ -1,4 +1,5 @@
 using VisioBridge.Contracts;
+using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Commands;
 using VisioBridge.Core.Session;
 
@@ -35,6 +36,23 @@ public sealed class VisioFixture : IDisposable
         _session.DeleteShape(command);
 
     public void Undo() => _session.UndoLastForIntegrationTest();
+
+    public RasterSettings ReadRasterSettings() =>
+        _session.ReadRasterSettingsForIntegrationTest();
+
+    public PreviewResult ExportPreview(int widthPx) =>
+        _session.ExportPreview(widthPx);
+
+    public static VisioFixture WithOneShape()
+    {
+        var fixture = StartVisible();
+        fixture.AddShape(new AddShapeCommand(
+            "preview-shape",
+            "rectangle",
+            new PixelBox(200, 200, 400, 200),
+            "Preview"));
+        return fixture;
+    }
 
     public SessionStatus GetStatus() => _session.GetStatus();
 

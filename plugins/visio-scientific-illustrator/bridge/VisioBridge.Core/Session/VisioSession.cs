@@ -4,6 +4,7 @@ using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
+using VisioBridge.Core.Export;
 using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
@@ -133,6 +134,58 @@ public sealed class VisioSession : IVisioSession
 
     public ClearResult Clear(bool confirm) =>
         ExecuteUndoable("Codex clear page", () => CreateShapeEditor().Clear(confirm));
+
+    public PreviewResult ExportPreview(int widthPx)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() => new PreviewExporter(
+                new VisioPreviewExportAdapter(RequireReadyApplication(), _page!),
+                _sessionTempRoot).Export(widthPx))
+            .GetAwaiter()
+            .GetResult();
+    }
+
+    public object Fit(string mode)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync<object>(() =>
+        {
+            var application = RequireReadyApplication();
+            if (mode is not ("page" or "width"))
+            {
+                throw new BridgeCommandException(
+                    BridgeErrorCodes.InvalidArgument,
+                    "fit mode 仅允许 page 或 width。");
+            }
+            var window = application.ActiveWindow;
+            try
+            {
+                if (window.Type != (short)Visio.VisWinTypes.visDrawing)
+                {
+                    throw BridgeCommandException.Unsupported(
+                        "当前 Visio 窗口不是绘图窗口。");
+                }
+                window.ViewFit = mode == "page"
+                    ? (int)Visio.VisWindowFit.visFitPage
+                    : (int)Visio.VisWindowFit.visFitWidth;
+                return new { mode };
+            }
+            finally
+            {
+                ReleaseCom(ref window);
+            }
+        }).GetAwaiter().GetResult();
+    }
+
+    public RasterSettings ReadRasterSettingsForIntegrationTest()
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() => new VisioPreviewExportAdapter(
+                RequireReadyApplication(),
+                _page!).ReadSettings())
+            .GetAwaiter()
+            .GetResult();
+    }
 
     public void UndoLastForIntegrationTest()
     {

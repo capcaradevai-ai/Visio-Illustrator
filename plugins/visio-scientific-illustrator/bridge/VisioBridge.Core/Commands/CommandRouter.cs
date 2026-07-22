@@ -25,6 +25,8 @@ public sealed class CommandRouter
         "update_shape" => _session.UpdateShape(Deserialize<UpdateShapeCommand>(parameters)),
         "delete_shape" => _session.DeleteShape(Deserialize<DeleteShapeCommand>(parameters)),
         "clear" => _session.Clear(Deserialize<ClearCommand>(parameters).Confirm),
+        "fit" => _session.Fit(Deserialize<FitCommand>(parameters).Mode),
+        "preview" => _session.ExportPreview(Deserialize<PreviewCommand>(parameters).WidthPx),
         "close_document" => CloseDocument(Deserialize<CloseDocumentCommand>(parameters)),
         "shutdown" => Shutdown(Deserialize<ShutdownCommand>(parameters)),
         _ => throw BridgeCommandException.Unsupported($"不支持命令: {command}"),

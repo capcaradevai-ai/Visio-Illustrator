@@ -25,6 +25,10 @@ public interface IVisioSession : IDisposable
 
     ClearResult Clear(bool confirm);
 
+    PreviewResult ExportPreview(int widthPx);
+
+    object Fit(string mode);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,
