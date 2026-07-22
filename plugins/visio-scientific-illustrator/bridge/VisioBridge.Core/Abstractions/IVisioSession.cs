@@ -29,6 +29,8 @@ public interface IVisioSession : IDisposable
 
     object Fit(string mode);
 
+    SaveResult Save(SaveCommand command);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,

@@ -5,6 +5,7 @@ using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
 using VisioBridge.Core.Export;
+using VisioBridge.Core.Files;
 using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
@@ -185,6 +186,20 @@ public sealed class VisioSession : IVisioSession
                 _page!).ReadSettings())
             .GetAwaiter()
             .GetResult();
+    }
+
+    public SaveResult Save(SaveCommand command)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() =>
+        {
+            RequireReadyApplication();
+            var service = new VisioFileService(new SafeFileWriter(
+                new VisioDocumentSaver(_document!),
+                new VisioDocumentValidator(),
+                _sessionId));
+            return service.Save(command);
+        }).GetAwaiter().GetResult();
     }
 
     public void UndoLastForIntegrationTest()

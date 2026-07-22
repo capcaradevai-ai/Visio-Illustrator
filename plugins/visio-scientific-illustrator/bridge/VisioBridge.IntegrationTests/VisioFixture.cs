@@ -43,6 +43,9 @@ public sealed class VisioFixture : IDisposable
     public PreviewResult ExportPreview(int widthPx) =>
         _session.ExportPreview(widthPx);
 
+    public SaveResult Save(string outputPath, bool overwrite = false) =>
+        _session.Save(new SaveCommand(outputPath, overwrite));
+
     public static VisioFixture WithOneShape()
     {
         var fixture = StartVisible();
