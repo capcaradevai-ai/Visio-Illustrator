@@ -8,10 +8,12 @@ import { BridgeClient, resolveBridgeExecutable } from "./bridge-client.mjs";
 import {
   rpcError,
   rpcResult,
+  mapToolError,
   SerialQueue,
   toolResult,
+  validateSchema,
 } from "./mcp-common.mjs";
-import { liveTools } from "./tool-schemas.mjs";
+import { findTool, liveTools } from "./tool-schemas.mjs";
 
 const serverName = "visio-live";
 const serverVersion = "0.1.0";
@@ -147,6 +149,16 @@ async function handleMessage(message) {
   if (method === "tools/list") return rpcResult(id, { tools: liveTools });
   if (method === "tools/call") {
     try {
+      const descriptor = findTool(liveTools, params?.name);
+      if (!descriptor) {
+        return rpcResult(id, toolResult({
+          error: "UNSUPPORTED_OPERATION",
+          message: `不支持工具: ${params?.name}`,
+          retryable: false,
+          tool: params?.name,
+        }, { isError: true }));
+      }
+      validateSchema(params?.arguments || {}, descriptor.inputSchema);
       const handled = await handleTool(params?.name, params?.arguments || {});
       const value = handled?.value ?? handled;
       return rpcResult(id, toolResult(value, {
@@ -154,13 +166,7 @@ async function handleMessage(message) {
         isError: Boolean(value?.error),
       }));
     } catch (error) {
-      return rpcResult(id, toolResult({
-        error: error.bridgeError?.code || "BRIDGE_ERROR",
-        message: error.message,
-        retryable: error.bridgeError?.retryable ?? false,
-        details: error.bridgeError?.details,
-        tool: params?.name,
-      }, { isError: true }));
+      return rpcResult(id, toolResult(mapToolError(error, params?.name), { isError: true }));
     }
   }
   if (method?.startsWith("notifications/")) return null;
