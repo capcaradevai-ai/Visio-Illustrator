@@ -17,6 +17,14 @@ public interface IVisioSession : IDisposable
 
     ConnectorMutationResult AddConnector(AddConnectorCommand command);
 
+    PageInspectionResult Inspect(int maxShapes);
+
+    ShapeSnapshot UpdateShape(UpdateShapeCommand command);
+
+    DeleteResult DeleteShape(DeleteShapeCommand command);
+
+    ClearResult Clear(bool confirm);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,

@@ -25,6 +25,17 @@ public sealed class VisioFixture : IDisposable
     public ConnectorMutationResult AddConnector(AddConnectorCommand command) =>
         _session.AddConnector(command);
 
+    public PageInspectionResult Inspect(int maxShapes = 500) =>
+        _session.Inspect(maxShapes);
+
+    public ShapeSnapshot UpdateShape(UpdateShapeCommand command) =>
+        _session.UpdateShape(command);
+
+    public DeleteResult DeleteShape(DeleteShapeCommand command) =>
+        _session.DeleteShape(command);
+
+    public void Undo() => _session.UndoLastForIntegrationTest();
+
     public SessionStatus GetStatus() => _session.GetStatus();
 
     public static VisioFixture StartVisible()

@@ -21,6 +21,11 @@ public sealed class CommandRouter
         "add_shape" => _session.AddShape(Deserialize<AddShapeCommand>(parameters)),
         "add_image" => _session.AddImage(Deserialize<AddImageCommand>(parameters)),
         "add_connector" => _session.AddConnector(Deserialize<AddConnectorCommand>(parameters)),
+        "inspect" => _session.Inspect(Deserialize<InspectCommand>(parameters).MaxShapes),
+        "update_shape" => _session.UpdateShape(Deserialize<UpdateShapeCommand>(parameters)),
+        "delete_shape" => _session.DeleteShape(Deserialize<DeleteShapeCommand>(parameters)),
+        "clear" => _session.Clear(Deserialize<ClearCommand>(parameters).Confirm),
+        "close_document" => CloseDocument(Deserialize<CloseDocumentCommand>(parameters)),
         "shutdown" => Shutdown(Deserialize<ShutdownCommand>(parameters)),
         _ => throw BridgeCommandException.Unsupported($"不支持命令: {command}"),
     };
@@ -43,6 +48,12 @@ public sealed class CommandRouter
     {
         _session.Shutdown(command.Confirm, command.DirtyAction);
         return new { shutdown = _session.State == Session.SessionState.Stopped };
+    }
+
+    private object CloseDocument(CloseDocumentCommand command)
+    {
+        _session.CloseDocument(command.Action);
+        return new { closed = _session.State == Session.SessionState.Stopped };
     }
 
     private static T Deserialize<T>(JsonElement parameters) =>

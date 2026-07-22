@@ -35,6 +35,13 @@ public sealed class GeometryConverter
 
     public PixelBox ToPixels(VisioBox box)
     {
+        var result = ToPixelsAllowingOverflow(box);
+        ValidatePixelBox(result);
+        return result;
+    }
+
+    public PixelBox ToPixelsAllowingOverflow(VisioBox box)
+    {
         if (!AreFinite(
                 box.PinXInches,
                 box.PinYInches,
@@ -53,7 +60,6 @@ public sealed class GeometryConverter
             _canvas.HeightPx - box.PinYInches * _canvas.Dpi - heightPx / 2d,
             widthPx,
             heightPx);
-        ValidatePixelBox(result);
         return result;
     }
 

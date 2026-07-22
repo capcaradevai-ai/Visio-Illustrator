@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
+using VisioBridge.Core.Inspection;
 using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
@@ -106,25 +107,37 @@ public sealed class VisioSession : IVisioSession
     }
 
     public ShapeMutationResult AddShape(AddShapeCommand command)
-    {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() => CreateShapeFactory().Add(command))
-            .GetAwaiter()
-            .GetResult();
-    }
+        => ExecuteUndoable("Codex add shape", () => CreateShapeFactory().Add(command));
 
     public ShapeMutationResult AddImage(AddImageCommand command)
+        => ExecuteUndoable("Codex add image", () => CreateShapeFactory().AddImage(command));
+
+    public ConnectorMutationResult AddConnector(AddConnectorCommand command)
+        => ExecuteUndoable(
+            "Codex add connector",
+            () => CreateConnectorService().Add(command));
+
+    public PageInspectionResult Inspect(int maxShapes)
     {
         ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() => CreateShapeFactory().AddImage(command))
+        return _dispatcher.InvokeAsync(() => CreateInspector().Inspect(maxShapes))
             .GetAwaiter()
             .GetResult();
     }
 
-    public ConnectorMutationResult AddConnector(AddConnectorCommand command)
+    public ShapeSnapshot UpdateShape(UpdateShapeCommand command) =>
+        ExecuteUndoable("Codex update shape", () => CreateShapeEditor().Update(command));
+
+    public DeleteResult DeleteShape(DeleteShapeCommand command) =>
+        ExecuteUndoable("Codex delete shape", () => CreateShapeEditor().Delete(command));
+
+    public ClearResult Clear(bool confirm) =>
+        ExecuteUndoable("Codex clear page", () => CreateShapeEditor().Clear(confirm));
+
+    public void UndoLastForIntegrationTest()
     {
         ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() => CreateConnectorService().Add(command))
+        _dispatcher.InvokeAsync(() => RequireReadyApplication().Undo())
             .GetAwaiter()
             .GetResult();
     }
@@ -470,6 +483,56 @@ public sealed class VisioSession : IVisioSession
         return new ConnectorService(
             new ShapeRepository(accessor),
             new VisioConnectorAdapter(_page, _application!));
+    }
+
+    private PageInspector CreateInspector()
+    {
+        RequireReadyApplication();
+        return new PageInspector(
+            _document!,
+            _page!,
+            new GeometryConverter(_canvas!));
+    }
+
+    private ShapeEditor CreateShapeEditor()
+    {
+        RequireReadyApplication();
+        var geometry = new GeometryConverter(_canvas!);
+        var accessor = new VisioShapeAccessor(() => _page!);
+        var repository = new ShapeRepository(accessor);
+        var inspector = new PageInspector(_document!, _page!, geometry);
+        return new ShapeEditor(new VisioShapeEditorAdapter(
+            _page!,
+            repository,
+            geometry,
+            inspector));
+    }
+
+    private T ExecuteUndoable<T>(string name, Func<T> operation)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() =>
+        {
+            using var scope = new UndoScope(RequireReadyApplication(), name);
+            var result = operation();
+            scope.Complete();
+            return result;
+        }).GetAwaiter().GetResult();
+    }
+
+    private Visio.InvisibleApp RequireReadyApplication()
+    {
+        if (_state != SessionState.Ready
+            || _application is null
+            || _document is null
+            || _page is null
+            || _canvas is null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SessionNotReady,
+                "Visio 会话尚未准备好。");
+        }
+        return _application;
     }
 
     private static void ValidateCanvas(string pageName, int widthPx, int heightPx, int dpi)
