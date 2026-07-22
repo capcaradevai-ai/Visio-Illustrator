@@ -14,16 +14,38 @@ test("Visio skill contains required boundaries and no active legacy terminology"
   const skill = await readFile(skillPath, "utf8");
   for (const required of [
     "Visio COM automation",
+    "SceneGraph",
+    "primitive budget",
+    "rich text",
+    "editable freeform path",
+    "region checkpoint",
+    "local image policy",
+    "visual comparison",
+    "final acceptance gate",
     "User.CodexId",
     "CellsU",
     "FormulaU",
     "glued 1D connectors",
+    "visio_live_draw_scene",
+    "visio_live_add_scientific_component",
+    "visio_live_add_path",
+    "visio_compare_preview",
+    "visio_validate_fidelity",
     "visio_live_preview",
     "visio_live_save",
   ]) {
     assert.match(skill, new RegExp(required.replaceAll(".", "\\.")));
   }
-  for (const forbidden of ["CDP", "mxCell", "mxCodec", "graph_ready", "drawio_live_"]) {
+  for (const forbidden of [
+    "CDP",
+    "mxCell",
+    "mxCodec",
+    "graph_ready",
+    "drawio_live_",
+    "ASCII art",
+    "ellipse-as-cylinder",
+    "SSIM-only",
+  ]) {
     assert.equal(skill.includes(forbidden), false, forbidden);
   }
 });
