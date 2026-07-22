@@ -9,6 +9,10 @@ import {
   mapToolError,
   validateSchema,
 } from "../../plugins/visio-scientific-illustrator/scripts/mcp-common.mjs";
+import {
+  sceneGraphSchema,
+  validateSceneGraph,
+} from "../../plugins/visio-scientific-illustrator/scripts/scene-schema.mjs";
 
 test("live tool names are stable and Visio-specific", () => {
   assert.deepEqual(liveTools.map((tool) => tool.name), [
@@ -141,6 +145,63 @@ test("known Bridge errors preserve their stable fields", () => {
     details: { hresult: -2147417846 },
     tool: "visio_live_status",
   });
+});
+
+test("scientific scene schema accepts a complete scene and rejects unknown node kinds", () => {
+  const scene = {
+    scene_id: "scene",
+    canvas: { width_px: 1600, height_px: 900, dpi: 96 },
+    style_tokens: { blue: "#0B4A8B" },
+    layers: ["content", "connectors"],
+    nodes: [
+      {
+        kind: "shape",
+        semantic_id: "input",
+        bounds: { x: 10, y: 20, width: 100, height: 60 },
+        layer: "content",
+        shape: "rectangle",
+      },
+      {
+        kind: "path",
+        semantic_id: "wave",
+        bounds: { x: 200, y: 100, width: 120, height: 60 },
+        layer: "content",
+        commands: [{ op: "M", x: 0, y: 30 }, { op: "L", x: 120, y: 30 }],
+      },
+    ],
+    connectors: [{ semantic_id: "flow", source: "input", target: "wave", routing: "straight" }],
+    regions: [{ id: "main", bounds: { x: 0, y: 0, width: 1600, height: 900 }, checkpoint: true }],
+  };
+
+  assert.doesNotThrow(() => validateSchema(scene, sceneGraphSchema));
+  assert.doesNotThrow(() => validateSceneGraph(scene));
+  assert.throws(
+    () => validateSchema({ ...scene, nodes: [{ ...scene.nodes[0], kind: "unknown" }] }, sceneGraphSchema),
+    /kind/,
+  );
+});
+
+test("scientific scene semantic validation rejects duplicate IDs and undeclared layers", () => {
+  const base = {
+    scene_id: "scene",
+    canvas: { width_px: 100, height_px: 100, dpi: 96 },
+    style_tokens: {},
+    layers: ["content"],
+    nodes: [
+      { kind: "shape", semantic_id: "a", bounds: { x: 0, y: 0, width: 20, height: 20 }, layer: "content", shape: "rectangle" },
+    ],
+    connectors: [],
+    regions: [{ id: "main", bounds: { x: 0, y: 0, width: 100, height: 100 }, checkpoint: true }],
+  };
+
+  assert.throws(() => validateSceneGraph({
+    ...base,
+    nodes: [...base.nodes, { ...base.nodes[0] }],
+  }), /\$\.nodes\[1\]\.semantic_id/);
+  assert.throws(() => validateSceneGraph({
+    ...base,
+    nodes: [{ ...base.nodes[0], layer: "missing" }],
+  }), /\$\.nodes\[0\]\.layer/);
 });
 
 test("unknown Bridge error becomes INTERNAL_ERROR without losing its code", () => {
