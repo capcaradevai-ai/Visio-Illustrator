@@ -50,15 +50,15 @@ internal sealed class ShapeFactory
         try
         {
             SetGeometry(shape, box);
-            if (command.Label is not null && command.RichText is not null)
-                throw new BridgeCommandException(BridgeErrorCodes.InvalidArgument, "label 与 rich_text 不能同时提供。");
-            if (command.RichText is not null) RichTextFormatter.Apply(shape, command.RichText);
-            else if (command.Label is not null) shape.Text = command.Label;
             if (command.Shape != "container")
             {
                 StyleMapper.ApplyTextDefaults(shape, command.Shape == "text");
             }
             StyleMapper.Apply(shape, command.Style);
+            if (command.Label is not null && command.RichText is not null)
+                throw new BridgeCommandException(BridgeErrorCodes.InvalidArgument, "label 与 rich_text 不能同时提供。");
+            if (command.RichText is not null) RichTextFormatter.Apply(shape, command.RichText);
+            else if (command.Label is not null) shape.Text = command.Label;
             using var handle = new VisioShapeHandle(shape);
             shape = null;
             _repository.Register(handle, command.SemanticId);

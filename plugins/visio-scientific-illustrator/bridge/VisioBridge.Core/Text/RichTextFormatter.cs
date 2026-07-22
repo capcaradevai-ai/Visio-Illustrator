@@ -16,6 +16,10 @@ internal sealed record CompiledTextRun(
     int Position,
     bool? Strikethrough);
 
+internal sealed record CompiledRichTextPlan(
+    CompiledTextRun? Common,
+    IReadOnlyList<CompiledTextRun> Runs);
+
 internal static class RichTextCompiler
 {
     private static readonly HashSet<string> FitModes = new(StringComparer.Ordinal)
@@ -66,6 +70,47 @@ internal static class RichTextCompiler
         return result;
     }
 
+    public static CompiledRichTextPlan CompilePlan(RichText richText)
+    {
+        var runs = Compile(richText);
+        if (!CoversWholeText(runs, richText.Text.Length)) return new CompiledRichTextPlan(null, runs);
+
+        var font = Common(runs.Select(run => run.FontFamily));
+        var size = Common(runs.Select(run => run.FontSizePt));
+        var color = Common(runs.Select(run => run.Color));
+        var common = font is null && size is null && color is null
+            ? null
+            : new CompiledTextRun(0, richText.Text.Length, font, size, color, 0, 0, null);
+        var optimized = runs.Select(run => run with
+        {
+            FontFamily = font is null ? run.FontFamily : null,
+            FontSizePt = size is null ? run.FontSizePt : null,
+            Color = color is null ? run.Color : null,
+        }).ToArray();
+        return new CompiledRichTextPlan(common, optimized);
+    }
+
+    private static bool CoversWholeText(IReadOnlyList<CompiledTextRun> runs, int length)
+    {
+        if (runs.Count == 0 || runs[0].Start != 0) return false;
+        var end = 0;
+        foreach (var run in runs)
+        {
+            if (run.Start != end) return false;
+            end = run.Start + run.Length;
+        }
+        return end == length;
+    }
+
+    private static T? Common<T>(IEnumerable<T?> values)
+    {
+        var items = values.ToArray();
+        if (items.Length == 0 || items[0] is null) return default;
+        return items.All(item => EqualityComparer<T?>.Default.Equals(item, items[0]))
+            ? items[0]
+            : default;
+    }
+
     private static void Invalid(string message) =>
         throw new BridgeCommandException(BridgeErrorCodes.InvalidStyle, message);
 }
@@ -74,12 +119,21 @@ internal static class RichTextFormatter
 {
     public static void Apply(Visio.Shape shape, RichText richText)
     {
-        var runs = RichTextCompiler.Compile(richText);
+        var plan = RichTextCompiler.CompilePlan(richText);
         shape.Text = richText.Text;
         ApplyParagraph(shape, richText.Paragraph);
-        foreach (var run in runs) ApplyRun(shape, run);
+        if (plan.Common is not null) ApplyRun(shape, plan.Common);
+        foreach (var run in plan.Runs.Where(RequiresComWrite)) ApplyRun(shape, run);
         ApplyFit(shape, richText);
     }
+
+    private static bool RequiresComWrite(CompiledTextRun run) =>
+        run.FontFamily is not null
+        || run.FontSizePt is not null
+        || run.Color is not null
+        || run.StyleBits != 0
+        || run.Position != 0
+        || run.Strikethrough == true;
 
     private static void ApplyRun(Visio.Shape shape, CompiledTextRun run)
     {
@@ -89,12 +143,14 @@ internal static class RichTextFormatter
             characters = shape.Characters;
             characters.Begin = run.Start;
             characters.End = run.Start + run.Length;
-            characters.set_CharProps((short)Visio.VisCellIndices.visCharacterStyle, (short)run.StyleBits);
-            characters.set_CharProps((short)Visio.VisCellIndices.visCharacterPos, (short)run.Position);
+            if (run.StyleBits != 0)
+                characters.set_CharProps((short)Visio.VisCellIndices.visCharacterStyle, (short)run.StyleBits);
+            if (run.Position != 0)
+                characters.set_CharProps((short)Visio.VisCellIndices.visCharacterPos, (short)run.Position);
             if (run.FontSizePt is not null)
                 characters.set_CharProps((short)Visio.VisCellIndices.visCharacterSize, (short)Math.Round(run.FontSizePt.Value));
-            if (run.Strikethrough is not null)
-                characters.set_CharProps((short)Visio.VisCellIndices.visCharacterStrikethru, (short)(run.Strikethrough.Value ? 1 : 0));
+            if (run.Strikethrough == true)
+                characters.set_CharProps((short)Visio.VisCellIndices.visCharacterStrikethru, 1);
             if (run.FontFamily is not null) ApplyFont(shape, characters, run.FontFamily);
             if (run.Color is not null) ApplyRunColor(shape, characters, run.Color);
         }

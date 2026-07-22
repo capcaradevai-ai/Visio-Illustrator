@@ -69,4 +69,28 @@ public sealed class RichTextFormatterTests
         Assert.Single(RichTextCompiler.Compile(new RichText(
             "x", Runs: [new TextRun(0, 1, Bold: true)], Fit: "shrink_text")));
     }
+
+    [Fact]
+    public void Shared_font_size_and_color_are_compiled_once_for_a_complete_text_partition()
+    {
+        var text = new RichText("AB12", Runs:
+        [
+            new TextRun(0, 2, FontFamily: "Arial", FontSizePt: 12, Color: "#123456", Bold: true),
+            new TextRun(2, 2, FontFamily: "Arial", FontSizePt: 12, Color: "#123456", Subscript: true),
+        ]);
+
+        var plan = RichTextCompiler.CompilePlan(text);
+
+        Assert.Equal("Arial", plan.Common?.FontFamily);
+        Assert.Equal(12, plan.Common?.FontSizePt);
+        Assert.Equal("#123456", plan.Common?.Color);
+        Assert.All(plan.Runs, run =>
+        {
+            Assert.Null(run.FontFamily);
+            Assert.Null(run.FontSizePt);
+            Assert.Null(run.Color);
+        });
+        Assert.NotEqual(0, plan.Runs[0].StyleBits);
+        Assert.Equal(2, plan.Runs[1].Position);
+    }
 }
