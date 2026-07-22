@@ -20,6 +20,7 @@ public sealed class CommandRouter
         "status" => _session.GetStatus(),
         "add_shape" => _session.AddShape(Deserialize<AddShapeCommand>(parameters)),
         "add_image" => _session.AddImage(Deserialize<AddImageCommand>(parameters)),
+        "add_connector" => _session.AddConnector(Deserialize<AddConnectorCommand>(parameters)),
         "shutdown" => Shutdown(Deserialize<ShutdownCommand>(parameters)),
         _ => throw BridgeCommandException.Unsupported($"不支持命令: {command}"),
     };

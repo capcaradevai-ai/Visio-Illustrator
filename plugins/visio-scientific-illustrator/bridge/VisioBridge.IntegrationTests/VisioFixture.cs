@@ -22,6 +22,9 @@ public sealed class VisioFixture : IDisposable
 
     public ShapeMutationResult AddShape(AddShapeCommand command) => _session.AddShape(command);
 
+    public ConnectorMutationResult AddConnector(AddConnectorCommand command) =>
+        _session.AddConnector(command);
+
     public SessionStatus GetStatus() => _session.GetStatus();
 
     public static VisioFixture StartVisible()

@@ -121,6 +121,14 @@ public sealed class VisioSession : IVisioSession
             .GetResult();
     }
 
+    public ConnectorMutationResult AddConnector(AddConnectorCommand command)
+    {
+        ThrowIfDisposed();
+        return _dispatcher.InvokeAsync(() => CreateConnectorService().Add(command))
+            .GetAwaiter()
+            .GetResult();
+    }
+
     public void CloseDocument(string action)
     {
         ThrowIfDisposed();
@@ -448,6 +456,20 @@ public sealed class VisioSession : IVisioSession
             _page,
             new GeometryConverter(_canvas),
             repository);
+    }
+
+    private ConnectorService CreateConnectorService()
+    {
+        if (_state != SessionState.Ready || _page is null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SessionNotReady,
+                "Visio 会话尚未准备好。");
+        }
+        var accessor = new VisioShapeAccessor(() => _page!);
+        return new ConnectorService(
+            new ShapeRepository(accessor),
+            new VisioConnectorAdapter(_page, _application!));
     }
 
     private static void ValidateCanvas(string pageName, int widthPx, int heightPx, int dpi)

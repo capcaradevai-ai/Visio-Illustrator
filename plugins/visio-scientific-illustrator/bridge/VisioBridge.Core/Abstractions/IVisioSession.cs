@@ -15,6 +15,8 @@ public interface IVisioSession : IDisposable
 
     ShapeMutationResult AddImage(AddImageCommand command);
 
+    ConnectorMutationResult AddConnector(AddConnectorCommand command);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,
