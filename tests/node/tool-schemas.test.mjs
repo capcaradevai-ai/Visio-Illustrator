@@ -48,6 +48,7 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_set_cells",
     "visio_live_add_connection_point",
     "visio_live_get_geometry",
+    "visio_live_draw_scene",
   ]);
   assert.equal(JSON.stringify(liveTools).includes("drawio"), false);
   assert.deepEqual(fileTools.map((tool) => tool.name), [
@@ -55,6 +56,27 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_inspect_file",
     "visio_export",
   ]);
+});
+
+test("draw scene schema exposes paced regional execution", () => {
+  const drawScene = liveTools.find((tool) => tool.name === "visio_live_draw_scene");
+  const scene = {
+    scene_id: "scene",
+    canvas: { width_px: 800, height_px: 500, dpi: 96 },
+    style_tokens: {}, layers: ["content"],
+    nodes: [{
+      kind: "shape", semantic_id: "a", shape: "rectangle",
+      bounds: { x: 20, y: 20, width: 100, height: 60 }, layer: "content",
+      label: "A", style: { fill: { kind: "solid", color: "#FFFFFF" } },
+    }],
+    connectors: [],
+    regions: [{ id: "main", bounds: { x: 0, y: 0, width: 800, height: 500 }, checkpoint: true }],
+  };
+  assert.doesNotThrow(() => validateSchema({
+    scene, step_delay_ms: 500, start_region: "main", end_region: "main",
+    stop_after_checkpoint: true, existing_policy: "error",
+  }, drawScene.inputSchema));
+  assert.throws(() => validateSchema({ scene, step_delay_ms: 0 }, drawScene.inputSchema));
 });
 
 test("controlled ShapeSheet schemas reject formulas and event cells", () => {

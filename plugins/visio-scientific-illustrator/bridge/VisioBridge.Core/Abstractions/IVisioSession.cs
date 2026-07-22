@@ -65,6 +65,12 @@ public interface IVisioSession : IDisposable
 
     GeometryInspectionResult GetGeometry(GetGeometryCommand command);
 
+    SceneExecutionPlan PrepareScene(DrawSceneCommand command);
+
+    EnsureLayersResult EnsureLayers(EnsureLayersCommand command);
+
+    object Refresh();
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,

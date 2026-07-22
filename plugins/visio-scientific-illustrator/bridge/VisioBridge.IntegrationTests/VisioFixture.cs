@@ -131,6 +131,12 @@ public sealed class VisioFixture : IDisposable
 
     public GeometryInspectionResult GetGeometry(GetGeometryCommand command) => _session.GetGeometry(command);
 
+    public SceneExecutionPlan PrepareScene(DrawSceneCommand command) => _session.PrepareScene(command);
+
+    public EnsureLayersResult EnsureLayers(EnsureLayersCommand command) => _session.EnsureLayers(command);
+
+    public object Refresh() => _session.Refresh();
+
     public static VisioFixture WithOneShape()
     {
         var fixture = StartVisible();

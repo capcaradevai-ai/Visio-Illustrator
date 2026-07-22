@@ -91,6 +91,7 @@ async function handleTool(name, args) {
   if (name === "visio_live_set_cells") return client.call("set_cells", args);
   if (name === "visio_live_add_connection_point") return client.call("add_connection_point", args);
   if (name === "visio_live_get_geometry") return client.call("get_geometry", args);
+  if (name === "visio_live_draw_scene") return drawScene(client, args);
   return { error: "UNSUPPORTED_OPERATION", message: `不支持工具: ${name}`, tool: name };
 }
 
@@ -145,6 +146,73 @@ async function drawSequence(client, args) {
     }
   }
   return { applied_count: results.length, failed_index: null, results, error: null };
+}
+
+async function drawScene(client, args) {
+  const plan = await client.call("prepare_scene", {
+    scene: args.scene,
+    ...(args.start_region === undefined ? {} : { start_region: args.start_region }),
+    ...(args.end_region === undefined ? {} : { end_region: args.end_region }),
+    stop_after_checkpoint: args.stop_after_checkpoint ?? false,
+    existing_policy: args.existing_policy ?? "error",
+  });
+  if (plan.conflicts?.length) {
+    return {
+      value: {
+        scene_id: plan.sceneId,
+        applied_count: 0,
+        failed_index: null,
+        conflicts: plan.conflicts,
+        checkpoints: [],
+        error: "SCENE_CONFLICT",
+      },
+    };
+  }
+
+  const delayMs = args.step_delay_ms ?? defaultStepDelayMs;
+  const results = [];
+  const checkpoints = [];
+  let lastImageData;
+  for (let index = 0; index < plan.steps.length; index += 1) {
+    const step = plan.steps[index];
+    try {
+      const result = await client.call(step.command, step.parameters);
+      await client.call("refresh", {});
+      results.push({ index, command: step.command, semantic_id: step.semantic_id, result });
+      await delay(delayMs);
+      if (step.checkpoint_after) {
+        const preview = await readOwnedPreview(await client.call("preview", { width_px: 2000 }));
+        checkpoints.push({ region_id: step.region_id, preview: preview.value });
+        lastImageData = preview.imageData;
+        if (args.stop_after_checkpoint === true) break;
+      }
+    } catch (error) {
+      return {
+        value: {
+          scene_id: plan.sceneId,
+          applied_count: results.length,
+          failed_index: index,
+          conflicts: [],
+          checkpoints,
+          results,
+          error: mapSequenceError(error),
+        },
+        imageData: lastImageData,
+      };
+    }
+  }
+  return {
+    value: {
+      scene_id: plan.sceneId,
+      applied_count: results.length,
+      failed_index: null,
+      conflicts: [],
+      checkpoints,
+      results,
+      error: null,
+    },
+    imageData: lastImageData,
+  };
 }
 
 function delay(milliseconds) {

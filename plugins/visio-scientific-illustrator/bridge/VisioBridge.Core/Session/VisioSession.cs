@@ -5,6 +5,7 @@ using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
 using VisioBridge.Core.Layout;
+using VisioBridge.Core.Scenes;
 using VisioBridge.Core.Interop;
 using VisioBridge.Core.Export;
 using VisioBridge.Core.Files;
@@ -291,6 +292,29 @@ public sealed class VisioSession : IVisioSession
 
     public GeometryInspectionResult GetGeometry(GetGeometryCommand command) =>
         InvokeReady(() => CreateShapeSheetService().GetGeometry(command));
+
+    public SceneExecutionPlan PrepareScene(DrawSceneCommand command) => InvokeReady(() =>
+    {
+        var existing = CreateInspector().Inspect(5000).Shapes
+            .Select(shape => shape.SemanticId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToArray();
+        return SceneExecutor.Prepare(command, existing);
+    });
+
+    public EnsureLayersResult EnsureLayers(EnsureLayersCommand command) =>
+        ExecuteUndoable("Codex ensure scene layers", () => EnsureLayersCore(command));
+
+    public object Refresh() => InvokeReady<object>(() =>
+    {
+        var window = RequireReadyApplication().ActiveWindow;
+        try
+        {
+            window.Activate();
+            return new { refreshed = true };
+        }
+        finally { ReleaseCom(ref window); }
+    });
 
     public void UndoLastForIntegrationTest()
         => InvokeReady(() => RequireReadyApplication().Undo());
@@ -988,6 +1012,35 @@ public sealed class VisioSession : IVisioSession
         RequireReadyApplication();
         return new ShapeSheetService(
             new ShapeRepository(new VisioShapeAccessor(() => _page!)));
+    }
+
+    private EnsureLayersResult EnsureLayersCore(EnsureLayersCommand command)
+    {
+        if (command.Layers is null || command.Layers.Count is < 1 or > 128
+            || command.Layers.Any(string.IsNullOrWhiteSpace)
+            || command.Layers.Distinct(StringComparer.Ordinal).Count() != command.Layers.Count)
+            throw new BridgeCommandException(BridgeErrorCodes.InvalidArgument, "layers 必须包含 1–128 个唯一非空名称。");
+        var layers = _page!.Layers;
+        var created = 0;
+        try
+        {
+            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 1; index <= layers.Count; index++)
+            {
+                var layer = layers[index];
+                try { existing.Add(layer.NameU); existing.Add(layer.Name); }
+                finally { Marshal.FinalReleaseComObject(layer); }
+            }
+            foreach (var name in command.Layers)
+            {
+                if (existing.Contains(name)) continue;
+                var layer = layers.Add(name);
+                try { created++; existing.Add(layer.NameU); }
+                finally { Marshal.FinalReleaseComObject(layer); }
+            }
+            return new EnsureLayersResult(command.Layers, created);
+        }
+        finally { Marshal.FinalReleaseComObject(layers); }
     }
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)

@@ -1,3 +1,5 @@
+import { sceneGraphSchema } from "./scene-schema.mjs";
+
 const emptyObject = {
   type: "object",
   properties: {},
@@ -1026,6 +1028,22 @@ export const liveTools = [
     inputSchema: {
       type: "object", required: ["semantic_id"],
       properties: { semantic_id: semanticId, include_rows: { type: "boolean", default: true } },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_draw_scene",
+    description: "Progressively execute a validated Scientific SceneGraph in the visible Visio window with regional checkpoints.",
+    inputSchema: {
+      type: "object", required: ["scene"],
+      properties: {
+        scene: sceneGraphSchema,
+        step_delay_ms: { type: "integer", minimum: 100, maximum: 10000, default: 500 },
+        start_region: { type: "string", minLength: 1, maxLength: 120 },
+        end_region: { type: "string", minLength: 1, maxLength: 120 },
+        stop_after_checkpoint: { type: "boolean", default: false },
+        existing_policy: { type: "string", enum: ["error", "preserve"], default: "error" },
+      },
       additionalProperties: false,
     },
   },

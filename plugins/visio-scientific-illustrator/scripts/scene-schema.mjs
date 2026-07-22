@@ -42,7 +42,7 @@ const sceneNode = {
   type: "object",
   required: ["kind", "semantic_id", "bounds"],
   properties: {
-    kind: { type: "string", enum: ["shape", "text", "path", "image", "component"] },
+    kind: { type: "string", enum: ["shape", "text", "path", "image", "component", "group"] },
     semantic_id: semanticId,
     bounds,
     layer: { type: "string", minLength: 1, maxLength: 120 },
@@ -50,6 +50,9 @@ const sceneNode = {
     role: { type: "string", minLength: 1, maxLength: 120 },
     parent_id: semanticId,
     shape: { type: "string", minLength: 1, maxLength: 120 },
+    label: { type: "string", maxLength: 10000 },
+    style: { type: "object" },
+    rich_text: { type: "object" },
     text: { type: "string", maxLength: 10000 },
     commands: { type: "array", minItems: 1, maxItems: 2000, items: pathCommand },
     closed: { type: "boolean" },

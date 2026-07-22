@@ -23,6 +23,7 @@ public sealed record ScientificScene(
 [JsonDerivedType(typeof(ScenePathNode), "path")]
 [JsonDerivedType(typeof(SceneImageNode), "image")]
 [JsonDerivedType(typeof(SceneComponentNode), "component")]
+[JsonDerivedType(typeof(SceneGroupNode), "group")]
 public abstract record SceneNode(
     [property: JsonPropertyName("semantic_id")] string SemanticId,
     PixelBox Bounds,
@@ -35,6 +36,9 @@ public sealed record SceneShapeNode(
     string SemanticId,
     PixelBox Bounds,
     string Shape,
+    string? Label = null,
+    ShapeStyle? Style = null,
+    [property: JsonPropertyName("rich_text")] RichText? RichText = null,
     string? Layer = null,
     int? ZOrder = null,
     string? Role = null,
@@ -45,6 +49,8 @@ public sealed record SceneTextNode(
     string SemanticId,
     PixelBox Bounds,
     string Text,
+    ShapeStyle? Style = null,
+    [property: JsonPropertyName("rich_text")] RichText? RichText = null,
     string? Layer = null,
     int? ZOrder = null,
     string? Role = null,
@@ -56,6 +62,7 @@ public sealed record ScenePathNode(
     PixelBox Bounds,
     IReadOnlyList<ScenePathCommand> Commands,
     bool Closed = false,
+    ShapeStyle? Style = null,
     string? Layer = null,
     int? ZOrder = null,
     string? Role = null,
@@ -79,6 +86,15 @@ public sealed record SceneComponentNode(
     IReadOnlyDictionary<string, JsonElement>? Parameters = null,
     string? Layer = null,
     int? ZOrder = null,
+    string? ParentId = null)
+    : SceneNode(SemanticId, Bounds, Layer, ZOrder, Role, ParentId);
+
+public sealed record SceneGroupNode(
+    string SemanticId,
+    PixelBox Bounds,
+    string? Layer = null,
+    int? ZOrder = null,
+    string? Role = null,
     string? ParentId = null)
     : SceneNode(SemanticId, Bounds, Layer, ZOrder, Role, ParentId);
 
@@ -107,6 +123,35 @@ public sealed record SceneRegion(
     string Id,
     PixelBox Bounds,
     bool Checkpoint);
+
+public sealed record DrawSceneCommand(
+    ScientificScene Scene,
+    [property: JsonPropertyName("start_region")] string? StartRegion = null,
+    [property: JsonPropertyName("end_region")] string? EndRegion = null,
+    [property: JsonPropertyName("stop_after_checkpoint")] bool StopAfterCheckpoint = false,
+    [property: JsonPropertyName("existing_policy")] string ExistingPolicy = "error");
+
+public sealed record EnsureLayersCommand(IReadOnlyList<string> Layers);
+
+public sealed record EnsureLayersResult(IReadOnlyList<string> Layers, int CreatedCount);
+
+public sealed record SceneExecutionStep(
+    int Index,
+    string Command,
+    [property: JsonPropertyName("semantic_id")] string? SemanticId,
+    [property: JsonPropertyName("region_id")] string? RegionId,
+    JsonElement Parameters,
+    [property: JsonPropertyName("checkpoint_after")] bool CheckpointAfter = false);
+
+public sealed record SceneExecutionConflict(
+    string SemanticId,
+    string Reason,
+    string Resolution);
+
+public sealed record SceneExecutionPlan(
+    string SceneId,
+    IReadOnlyList<SceneExecutionStep> Steps,
+    IReadOnlyList<SceneExecutionConflict> Conflicts);
 
 public sealed class SceneContractException : Exception
 {
