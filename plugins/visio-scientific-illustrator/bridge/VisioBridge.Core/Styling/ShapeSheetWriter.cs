@@ -68,6 +68,98 @@ internal static class ShapeSheetWriter
     }
 }
 
+internal static class ControlledShapeSheet
+{
+    private static readonly IReadOnlyDictionary<string, string[]> Allowed =
+        new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["PinX"] = ["length"], ["PinY"] = ["length"], ["Width"] = ["length"], ["Height"] = ["length"],
+            ["Angle"] = ["angle"], ["LocPinX"] = ["length"], ["LocPinY"] = ["length"],
+            ["FillPattern"] = ["integer"], ["FillForegnd"] = ["color"], ["FillBkgnd"] = ["color"],
+            ["FillForegndTrans"] = ["percent"], ["FillBkgndTrans"] = ["percent"],
+            ["FillGradientDir"] = ["integer"], ["FillGradientAngle"] = ["angle"], ["FillGradientEnabled"] = ["boolean"],
+            ["LinePattern"] = ["integer"], ["LineColor"] = ["color"], ["LineWeight"] = ["length"],
+            ["LineColorTrans"] = ["percent"], ["LineCap"] = ["integer"],
+            ["BeginArrow"] = ["integer"], ["EndArrow"] = ["integer"], ["BeginArrowSize"] = ["integer"], ["EndArrowSize"] = ["integer"],
+            ["Rounding"] = ["length"], ["ShdwPattern"] = ["integer"], ["ShdwForegnd"] = ["color"],
+            ["ShdwOffsetX"] = ["length"], ["ShdwOffsetY"] = ["length"],
+            ["Char.Font"] = ["integer"], ["Char.Size"] = ["length"], ["Char.Color"] = ["color"],
+            ["Char.Style"] = ["integer"], ["Char.Position"] = ["integer"],
+            ["Para.HorzAlign"] = ["integer"], ["Para.IndLeft"] = ["length"], ["Para.IndRight"] = ["length"],
+            ["Para.SpBefore"] = ["length"], ["Para.SpAfter"] = ["length"], ["Para.SpLine"] = ["length"],
+            ["VerticalAlign"] = ["integer"], ["TxtPinX"] = ["length"], ["TxtPinY"] = ["length"],
+            ["TxtWidth"] = ["length"], ["TxtHeight"] = ["length"], ["LeftMargin"] = ["length"],
+            ["RightMargin"] = ["length"], ["TopMargin"] = ["length"], ["BottomMargin"] = ["length"],
+            ["LockWidth"] = ["boolean"], ["LockHeight"] = ["boolean"], ["LockAspect"] = ["boolean"],
+            ["LockMoveX"] = ["boolean"], ["LockMoveY"] = ["boolean"], ["LockRotate"] = ["boolean"],
+            ["ConFixedCode"] = ["integer"], ["ShapeRouteStyle"] = ["integer"], ["ConLineRouteExt"] = ["integer"],
+            ["LayerMember"] = ["integer"], ["NoObjHandles"] = ["boolean"], ["NoCtlHandles"] = ["boolean"],
+            ["NoAlignBox"] = ["boolean"],
+        };
+
+    public static bool IsAllowed(string cell) => cell is not null && Allowed.ContainsKey(cell);
+
+    public static string Compile(string cell, ShapeSheetValueContract value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        if (!Allowed.TryGetValue(cell, out var kinds))
+            throw Invalid($"不允许访问 ShapeSheet 单元格：{cell}");
+        if (!kinds.Contains(value.Kind, StringComparer.Ordinal))
+            throw Invalid($"单元格 {cell} 不接受 {value.Kind} 类型。");
+        return value.Kind switch
+        {
+            "length" => CompileLength(value),
+            "angle" => CompileAngle(value),
+            "percent" => CompilePercent(value),
+            "color" => CompileColor(value),
+            "boolean" => CompileBoolean(value),
+            "integer" => CompileInteger(value),
+            _ => throw Invalid($"不支持 ShapeSheet 值类型：{value.Kind}"),
+        };
+    }
+
+    private static string CompileLength(ShapeSheetValueContract value)
+    {
+        if (value.Number is null || value.Unit is not ("pt" or "in"))
+            throw Invalid("length 必须提供有限 number 和显式 pt 或 in 单位。");
+        return $"{ShapeSheetValue.Number(value.Number.Value)} {value.Unit}";
+    }
+
+    private static string CompileAngle(ShapeSheetValueContract value)
+    {
+        if (value.Number is null || value.Unit != "deg") throw Invalid("angle 必须使用 deg 单位。");
+        return ShapeSheetValue.Degrees(value.Number.Value);
+    }
+
+    private static string CompilePercent(ShapeSheetValueContract value)
+    {
+        if (value.Number is null || value.Unit != "%" || value.Number is < 0 or > 100)
+            throw Invalid("percent 必须使用 % 单位且位于 0–100。");
+        return ShapeSheetValue.Percent(value.Number.Value);
+    }
+
+    private static string CompileColor(ShapeSheetValueContract value)
+    {
+        if (value.Color is null) throw Invalid("color 必须提供 #RRGGBB。");
+        return ShapeSheetValue.Color(value.Color);
+    }
+
+    private static string CompileBoolean(ShapeSheetValueContract value)
+    {
+        if (value.Boolean is null) throw Invalid("boolean 必须提供 boolean 字段。");
+        return value.Boolean.Value ? "1" : "0";
+    }
+
+    private static string CompileInteger(ShapeSheetValueContract value)
+    {
+        if (value.Integer is null) throw Invalid("integer 必须提供 integer 字段。");
+        return value.Integer.Value.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static BridgeCommandException Invalid(string message) =>
+        new(BridgeErrorCodes.InvalidArgument, message);
+}
+
 internal static class StyleFormulaCompiler
 {
     public static IReadOnlyDictionary<string, string> Compile(ShapeStyle? style)

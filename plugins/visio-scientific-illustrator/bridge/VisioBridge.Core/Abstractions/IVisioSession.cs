@@ -57,6 +57,14 @@ public interface IVisioSession : IDisposable
 
     ScientificComponentMutationResult AddScientificComponent(AddScientificComponentCommand command);
 
+    ShapeSheetCellsResult GetCells(GetCellsCommand command);
+
+    ShapeSheetCellsResult SetCells(SetCellsCommand command);
+
+    ConnectionPointMutationResult AddConnectionPoint(AddConnectionPointCommand command);
+
+    GeometryInspectionResult GetGeometry(GetGeometryCommand command);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,

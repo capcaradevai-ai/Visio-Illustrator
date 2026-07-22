@@ -44,6 +44,10 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_set_protection",
     "visio_live_duplicate_shape",
     "visio_live_add_scientific_component",
+    "visio_live_get_cells",
+    "visio_live_set_cells",
+    "visio_live_add_connection_point",
+    "visio_live_get_geometry",
   ]);
   assert.equal(JSON.stringify(liveTools).includes("drawio"), false);
   assert.deepEqual(fileTools.map((tool) => tool.name), [
@@ -51,6 +55,35 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_inspect_file",
     "visio_export",
   ]);
+});
+
+test("controlled ShapeSheet schemas reject formulas and event cells", () => {
+  const byName = (name) => liveTools.find((tool) => tool.name === name).inputSchema;
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "panel",
+    writes: [
+      { cell: "Rounding", value: { kind: "length", number: 8, unit: "pt" } },
+      { cell: "LockAspect", value: { kind: "boolean", boolean: true } },
+      { cell: "FillForegnd", value: { kind: "color", color: "#245B91" } },
+    ],
+  }, byName("visio_live_set_cells")));
+  assert.throws(() => validateSchema({
+    semantic_id: "panel",
+    writes: [{ cell: "EventDblClick", value: { kind: "boolean", boolean: true } }],
+  }, byName("visio_live_set_cells")));
+  assert.throws(() => validateSchema({
+    semantic_id: "panel",
+    writes: [{ cell: "Rounding", formula: "CALLTHIS()" }],
+  }, byName("visio_live_set_cells")));
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "panel", cells: ["FillForegnd", "LineWeight", "LockAspect"],
+  }, byName("visio_live_get_cells")));
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "panel", name: "right_upper", x: 1, y: 0.25, direction_x: 1, direction_y: 0,
+  }, byName("visio_live_add_connection_point")));
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "wave", include_rows: true,
+  }, byName("visio_live_get_geometry")));
 });
 
 test("scientific component schema is bounded and editable", () => {

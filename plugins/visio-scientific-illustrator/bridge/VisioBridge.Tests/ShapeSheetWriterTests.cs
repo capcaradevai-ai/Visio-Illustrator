@@ -96,4 +96,32 @@ public sealed class ShapeSheetWriterTests
         Assert.Equal("12.5%", ShapeSheetValue.Percent(12.5));
         Assert.Equal("RGB(17,34,51)", ShapeSheetValue.Color("#112233"));
     }
+
+    [Theory]
+    [InlineData("Rounding", "length", 8, "pt", "8 pt")]
+    [InlineData("Angle", "angle", 45, "deg", "45 deg")]
+    [InlineData("FillForegndTrans", "percent", 12.5, "%", "12.5%")]
+    public void Controlled_cells_compile_typed_values(
+        string cell,
+        string kind,
+        double number,
+        string unit,
+        string expected)
+    {
+        var formula = ControlledShapeSheet.Compile(cell,
+            new ShapeSheetValueContract(kind, Number: number, Unit: unit));
+
+        Assert.Equal(expected, formula);
+    }
+
+    [Fact]
+    public void Controlled_cells_reject_events_unknown_cells_and_untyped_lengths()
+    {
+        Assert.Throws<BridgeCommandException>(() => ControlledShapeSheet.Compile(
+            "EventDblClick", new ShapeSheetValueContract("boolean", Boolean: true)));
+        Assert.Throws<BridgeCommandException>(() => ControlledShapeSheet.Compile(
+            "Rounding", new ShapeSheetValueContract("length", Number: 8)));
+        Assert.Throws<BridgeCommandException>(() => ControlledShapeSheet.Compile(
+            "Unknown", new ShapeSheetValueContract("integer", Integer: 1)));
+    }
 }

@@ -34,6 +34,22 @@ internal sealed class ConnectionPointService
 
     internal static void EnsureStandardAnchorsForShape(Visio.Shape shape) => EnsureStandardAnchors(shape);
 
+    internal static void AddNamedPoint(
+        Visio.Shape shape,
+        string name,
+        double x,
+        double y,
+        double directionX,
+        double directionY)
+    {
+        ValidateRowName(name);
+        if (!double.IsFinite(x) || !double.IsFinite(y) || x is < 0 or > 1 || y is < 0 or > 1
+            || !double.IsFinite(directionX) || !double.IsFinite(directionY)
+            || directionX is < -1 or > 1 || directionY is < -1 or > 1)
+            throw Invalid("连接点坐标必须在 0–1，方向必须在 -1–1 范围内。");
+        AddOrUpdate(shape, name, new ConnectionPointDefinition(x, y, directionX, directionY));
+    }
+
     public static string SelectAutoAnchor(double dx, double dy)
     {
         if (!double.IsFinite(dx) || !double.IsFinite(dy) || (dx == 0 && dy == 0))

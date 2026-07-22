@@ -12,7 +12,23 @@ public sealed record ShapeSnapshot(
     double RotationDeg,
     string? MasterNameU,
     IReadOnlyList<string> Layers,
-    IReadOnlyList<string> ConnectedTo);
+    IReadOnlyList<string> ConnectedTo,
+    int ZOrder = 0,
+    IReadOnlyDictionary<string, string>? StyleCells = null,
+    GeometrySummary? Geometry = null,
+    GroupSummary? Group = null,
+    IReadOnlyDictionary<string, bool>? Protection = null,
+    IReadOnlyList<string>? ConnectionPoints = null,
+    IReadOnlyDictionary<string, string>? SourceMetadata = null);
+
+public sealed record GeometrySummary(
+    int SectionCount,
+    int RowCount,
+    bool Closed);
+
+public sealed record GroupSummary(
+    string? ParentSemanticId,
+    IReadOnlyList<string> ChildSemanticIds);
 
 public sealed record PageInspectionResult(
     string DocumentName,

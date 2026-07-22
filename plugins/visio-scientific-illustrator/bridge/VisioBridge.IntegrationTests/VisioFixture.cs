@@ -122,6 +122,15 @@ public sealed class VisioFixture : IDisposable
     public ScientificComponentMutationResult AddScientificComponent(AddScientificComponentCommand command) =>
         _session.AddScientificComponent(command);
 
+    public ShapeSheetCellsResult GetCells(GetCellsCommand command) => _session.GetCells(command);
+
+    public ShapeSheetCellsResult SetCells(SetCellsCommand command) => _session.SetCells(command);
+
+    public ConnectionPointMutationResult AddConnectionPoint(AddConnectionPointCommand command) =>
+        _session.AddConnectionPoint(command);
+
+    public GeometryInspectionResult GetGeometry(GetGeometryCommand command) => _session.GetGeometry(command);
+
     public static VisioFixture WithOneShape()
     {
         var fixture = StartVisible();

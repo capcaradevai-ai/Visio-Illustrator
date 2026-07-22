@@ -280,6 +280,18 @@ public sealed class VisioSession : IVisioSession
             "Codex add scientific component",
             () => CreateScientificComponentFactory().Add(command));
 
+    public ShapeSheetCellsResult GetCells(GetCellsCommand command) =>
+        InvokeReady(() => CreateShapeSheetService().GetCells(command));
+
+    public ShapeSheetCellsResult SetCells(SetCellsCommand command) =>
+        ExecuteUndoable("Codex set ShapeSheet cells", () => CreateShapeSheetService().SetCells(command));
+
+    public ConnectionPointMutationResult AddConnectionPoint(AddConnectionPointCommand command) =>
+        ExecuteUndoable("Codex add connection point", () => CreateShapeSheetService().AddConnectionPoint(command));
+
+    public GeometryInspectionResult GetGeometry(GetGeometryCommand command) =>
+        InvokeReady(() => CreateShapeSheetService().GetGeometry(command));
+
     public void UndoLastForIntegrationTest()
         => InvokeReady(() => RequireReadyApplication().Undo());
 
@@ -969,6 +981,13 @@ public sealed class VisioSession : IVisioSession
         var grouping = new VisioGroupingService(_page!, repository);
         return new ScientificComponentFactory(
             shapeFactory, pathFactory, grouping, repository, inspector);
+    }
+
+    private ShapeSheetService CreateShapeSheetService()
+    {
+        RequireReadyApplication();
+        return new ShapeSheetService(
+            new ShapeRepository(new VisioShapeAccessor(() => _page!)));
     }
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)

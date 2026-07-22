@@ -93,13 +93,22 @@ internal sealed class PageInspector
             semanticId,
             shape.ID,
             shape.NameU,
-            shape.OneD != 0 ? "connector" : "shape",
+            shape.OneD != 0
+                ? "connector"
+                : shape.Type == (short)Visio.VisShapeTypes.visTypeGroup ? "group" : "shape",
             shape.Text ?? string.Empty,
             bounds,
             ReadCell(shape, "Angle", Visio.VisUnitCodes.visDegrees),
             masterName,
             layers,
-            connectedTo);
+            connectedTo,
+            shape.Index,
+            StyleInspector.Read(shape),
+            GeometryInspector.ReadSummary(shape),
+            ReadGroup(shape),
+            StyleInspector.ReadProtection(shape),
+            GeometryInspector.ReadConnectionPointNames(shape),
+            ReadSourceMetadata(shape));
     }
 
     internal PixelBox ReadBounds(Visio.Shape shape)
@@ -247,5 +256,47 @@ internal sealed class PageInspector
             Marshal.ReleaseComObject(connects);
         }
         return result.ToArray();
+    }
+
+    private static GroupSummary ReadGroup(Visio.Shape shape)
+    {
+        Visio.Shape? parent = null;
+        Visio.Shapes? children = null;
+        try
+        {
+            parent = shape.ContainingShape;
+            children = shape.Shapes;
+            var childIds = new List<string>();
+            for (var index = 1; index <= children.Count; index++)
+            {
+                var child = children[index];
+                try
+                {
+                    var id = ReadSemanticId(child);
+                    if (!string.IsNullOrWhiteSpace(id)) childIds.Add(id);
+                }
+                finally { Marshal.FinalReleaseComObject(child); }
+            }
+            return new GroupSummary(parent is null ? null : ReadSemanticId(parent), childIds);
+        }
+        finally
+        {
+            if (children is not null) Marshal.FinalReleaseComObject(children);
+            if (parent is not null) Marshal.FinalReleaseComObject(parent);
+        }
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadSourceMetadata(Visio.Shape shape)
+    {
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        const string cellName = "User.DrawioCellId";
+        if (shape.CellExistsU[cellName, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0) return result;
+        var cell = shape.CellsU[cellName];
+        try
+        {
+            result["drawio_cell_id"] = cell.ResultStrU[(object)Visio.VisUnitCodes.visUnitsString];
+            return result;
+        }
+        finally { Marshal.FinalReleaseComObject(cell); }
     }
 }

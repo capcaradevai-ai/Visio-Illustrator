@@ -546,6 +546,54 @@ export const launchSchema = {
   ],
 };
 
+const controlledCellNames = [
+  "PinX", "PinY", "Width", "Height", "Angle", "LocPinX", "LocPinY",
+  "FillPattern", "FillForegnd", "FillBkgnd", "FillForegndTrans", "FillBkgndTrans",
+  "FillGradientDir", "FillGradientAngle", "FillGradientEnabled", "LinePattern", "LineColor",
+  "LineWeight", "LineColorTrans", "LineCap", "BeginArrow", "EndArrow", "BeginArrowSize", "EndArrowSize",
+  "Rounding", "ShdwPattern", "ShdwForegnd", "ShdwOffsetX", "ShdwOffsetY",
+  "Char.Font", "Char.Size", "Char.Color", "Char.Style", "Char.Position", "Para.HorzAlign",
+  "Para.IndLeft", "Para.IndRight", "Para.SpBefore", "Para.SpAfter", "Para.SpLine", "VerticalAlign",
+  "TxtPinX", "TxtPinY", "TxtWidth", "TxtHeight", "LeftMargin", "RightMargin", "TopMargin", "BottomMargin",
+  "LockWidth", "LockHeight", "LockAspect", "LockMoveX", "LockMoveY", "LockRotate",
+  "ConFixedCode", "ShapeRouteStyle", "ConLineRouteExt", "LayerMember", "NoObjHandles", "NoCtlHandles", "NoAlignBox",
+];
+
+const controlledCellValue = {
+  oneOf: [
+    {
+      type: "object", required: ["kind", "number", "unit"],
+      properties: { kind: { const: "length" }, number: { type: "number" }, unit: { type: "string", enum: ["pt", "in"] } },
+      additionalProperties: false,
+    },
+    {
+      type: "object", required: ["kind", "number", "unit"],
+      properties: { kind: { const: "angle" }, number: { type: "number" }, unit: { const: "deg" } },
+      additionalProperties: false,
+    },
+    {
+      type: "object", required: ["kind", "number", "unit"],
+      properties: { kind: { const: "percent" }, number: { type: "number", minimum: 0, maximum: 100 }, unit: { const: "%" } },
+      additionalProperties: false,
+    },
+    {
+      type: "object", required: ["kind", "color"],
+      properties: { kind: { const: "color" }, color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" } },
+      additionalProperties: false,
+    },
+    {
+      type: "object", required: ["kind", "boolean"],
+      properties: { kind: { const: "boolean" }, boolean: { type: "boolean" } },
+      additionalProperties: false,
+    },
+    {
+      type: "object", required: ["kind", "integer"],
+      properties: { kind: { const: "integer" }, integer: { type: "integer" } },
+      additionalProperties: false,
+    },
+  ],
+};
+
 export const liveTools = [
   {
     name: "visio_live_launch",
@@ -923,6 +971,61 @@ export const liveTools = [
           additionalProperties: false,
         },
       },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_get_cells",
+    description: "Read allowlisted universal Visio ShapeSheet cells without evaluating arbitrary formulas.",
+    inputSchema: {
+      type: "object", required: ["semantic_id", "cells"],
+      properties: {
+        semantic_id: semanticId,
+        cells: { type: "array", minItems: 1, maxItems: 128, items: { type: "string", enum: controlledCellNames } },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_set_cells",
+    description: "Write typed values to allowlisted universal Visio ShapeSheet cells; raw formulas are not accepted.",
+    inputSchema: {
+      type: "object", required: ["semantic_id", "writes"],
+      properties: {
+        semantic_id: semanticId,
+        writes: {
+          type: "array", minItems: 1, maxItems: 128,
+          items: {
+            type: "object", required: ["cell", "value"],
+            properties: { cell: { type: "string", enum: controlledCellNames }, value: controlledCellValue },
+            additionalProperties: false,
+          },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_add_connection_point",
+    description: "Add or update a stable named Visio connection point using normalized local coordinates.",
+    inputSchema: {
+      type: "object", required: ["semantic_id", "name", "x", "y"],
+      properties: {
+        semantic_id: semanticId,
+        name: { type: "string", minLength: 1, maxLength: 64, pattern: "^[A-Za-z][A-Za-z0-9_]*$" },
+        x: { type: "number", minimum: 0, maximum: 1 }, y: { type: "number", minimum: 0, maximum: 1 },
+        direction_x: { type: "number", minimum: -1, maximum: 1, default: 0 },
+        direction_y: { type: "number", minimum: -1, maximum: 1, default: 0 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_get_geometry",
+    description: "Inspect native Visio Geometry sections and editable row formulas for a shape.",
+    inputSchema: {
+      type: "object", required: ["semantic_id"],
+      properties: { semantic_id: semanticId, include_rows: { type: "boolean", default: true } },
       additionalProperties: false,
     },
   },
