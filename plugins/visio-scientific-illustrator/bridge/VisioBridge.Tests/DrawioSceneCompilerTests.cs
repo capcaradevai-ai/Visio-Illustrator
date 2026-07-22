@@ -70,6 +70,25 @@ public sealed class DrawioSceneCompilerTests
         Assert.Equal(VisioBridge.Core.BridgeErrorCodes.InvalidDrawioDocument, error.Code);
     }
 
+    [Fact]
+    public void Nested_stage_panels_do_not_create_extra_top_level_regions()
+    {
+        using var directory = TestDirectory.Create();
+        var graph = """
+            <mxGraphModel pageWidth="800" pageHeight="500"><root>
+              <mxCell id="0"/><mxCell id="1" parent="0"/>
+              <mxCell id="panel_main" parent="1" vertex="1" value="" style="rounded=1;fillColor=#FFFFFF;strokeColor=#000000;"><mxGeometry x="20" y="20" width="760" height="460" as="geometry"/></mxCell>
+              <mxCell id="stage_box" parent="1" vertex="1" value="" style="rounded=1;fillColor=#FFFFFF;strokeColor=#000000;"><mxGeometry x="80" y="180" width="620" height="220" as="geometry"/></mxCell>
+            </root></mxGraphModel>
+            """;
+        var path = directory.WriteFile("nested.drawio", $"<mxfile><diagram name=\"Page-1\">{graph}</diagram></mxfile>");
+
+        var result = new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path));
+
+        var region = Assert.Single(result.Scene.Regions);
+        Assert.Equal(new PixelBox(20, 20, 760, 460), region.Bounds);
+    }
+
     private static string Compress(string xml)
     {
         var encoded = Encoding.UTF8.GetBytes(Uri.EscapeDataString(xml));

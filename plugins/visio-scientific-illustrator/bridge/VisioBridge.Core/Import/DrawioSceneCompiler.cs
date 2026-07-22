@@ -430,13 +430,22 @@ public sealed class DrawioSceneCompiler
 
     private static IReadOnlyList<SceneRegion> BuildRegions(IReadOnlyList<SceneNode> nodes, SceneCanvas canvas)
     {
-        var panels = nodes.Where(node => node.Role == "background"
+        var candidates = nodes.Where(node => node.Role == "background"
             && node.Bounds.Width >= canvas.WidthPx * .15
-            && node.Bounds.Height >= canvas.HeightPx * .35).Take(16).ToArray();
+            && node.Bounds.Height >= canvas.HeightPx * .35).Take(32).ToArray();
+        var panels = candidates.Where(panel => !candidates.Any(container =>
+            !ReferenceEquals(panel, container)
+            && container.Bounds.Width * container.Bounds.Height > panel.Bounds.Width * panel.Bounds.Height
+            && Contains(container.Bounds, panel.Bounds))).Take(16).ToArray();
         return panels.Length == 0
             ? [new SceneRegion("full", new PixelBox(0, 0, canvas.WidthPx, canvas.HeightPx), true)]
             : panels.Select((panel, index) => new SceneRegion($"region_{index + 1}", panel.Bounds, true)).ToArray();
     }
+
+    private static bool Contains(PixelBox outer, PixelBox inner) =>
+        inner.X >= outer.X && inner.Y >= outer.Y
+        && inner.X + inner.Width <= outer.X + outer.Width
+        && inner.Y + inner.Height <= outer.Y + outer.Height;
 
     private static Dictionary<string, string> ParseStyle(string? input)
     {
