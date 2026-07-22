@@ -89,6 +89,28 @@ public sealed class DrawioSceneCompilerTests
         Assert.Equal(new PixelBox(20, 20, 760, 460), region.Bounds);
     }
 
+    [Fact]
+    public void Invisible_anchor_waveform_compiles_as_editable_path_not_semantic_connector()
+    {
+        using var directory = TestDirectory.Create();
+        var graph = """
+            <mxGraphModel pageWidth="400" pageHeight="200"><root>
+              <mxCell id="0"/><mxCell id="1" parent="0"/>
+              <mxCell id="wave_s" parent="1" vertex="1" value="" style="ellipse;fillColor=none;strokeColor=none;opacity=0;"><mxGeometry x="40" y="80" width="1" height="1" as="geometry"/></mxCell>
+              <mxCell id="wave_t" parent="1" vertex="1" value="" style="ellipse;fillColor=none;strokeColor=none;opacity=0;"><mxGeometry x="240" y="80" width="1" height="1" as="geometry"/></mxCell>
+              <mxCell id="wave" parent="1" edge="1" source="wave_s" target="wave_t" value="" style="edgeStyle=orthogonalEdgeStyle;curved=1;startArrow=none;endArrow=none;strokeColor=#2F75C4;"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="100" y="50"/><mxPoint x="180" y="110"/></Array></mxGeometry></mxCell>
+            </root></mxGraphModel>
+            """;
+        var path = directory.WriteFile("wave.drawio", $"<mxfile><diagram name=\"Page-1\">{graph}</diagram></mxfile>");
+
+        var result = new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path));
+
+        var anchor = Assert.IsType<SceneShapeNode>(result.Scene.Nodes.Single(node => node.SemanticId == "wave_s"));
+        Assert.Equal("ellipse", anchor.Shape);
+        Assert.Empty(result.Scene.Connectors);
+        Assert.Contains(result.Scene.Nodes.OfType<ScenePathNode>(), node => node.SemanticId == "wave");
+    }
+
     private static string Compress(string xml)
     {
         var encoded = Encoding.UTF8.GetBytes(Uri.EscapeDataString(xml));

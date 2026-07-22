@@ -71,9 +71,10 @@ public sealed class DrawioSceneCompiler
             if (style.TryGetValue("gradientColor", out var gradient) && !IsNone(gradient)) gradientCount++;
             if (style.TryGetValue("rotation", out var rotation) && Number(rotation, 0) != 0) rotatedCount++;
             var shapeStyle = CompileStyle(style);
-            var layer = IsText(style) ? "labels" : IsPanel(id, bounds, canvas) ? "background" : "content";
+            var isText = IsText(style, richText.Text);
+            var layer = isText ? "labels" : IsPanel(id, bounds, canvas) ? "background" : "content";
             SceneNode node;
-            if (IsText(style))
+            if (isText)
             {
                 node = new SceneTextNode(
                     id, bounds, richText.Text, shapeStyle, richText, layer,
@@ -108,7 +109,7 @@ public sealed class DrawioSceneCompiler
             }
             var mappedSource = StableReference(source, vertices, ids);
             var mappedTarget = StableReference(target, vertices, ids);
-            if (IsDecorativeEdge(style))
+            if (IsDecorativeEdge(style, cells[source], cells[target]))
             {
                 nodes.Add(DecorativePath(edgeId, boundsById[source], boundsById[target], points, style));
                 decorativeCount++;
@@ -472,17 +473,32 @@ public sealed class DrawioSceneCompiler
         };
     }
 
-    private static bool IsText(IReadOnlyDictionary<string, string> style) => style.ContainsKey("text")
-        || IsNone(style.GetValueOrDefault("fillColor")) && IsNone(style.GetValueOrDefault("strokeColor"));
+    private static bool IsText(IReadOnlyDictionary<string, string> style, string text) => style.ContainsKey("text")
+        || text.Length > 0
+        && IsNone(style.GetValueOrDefault("fillColor"))
+        && IsNone(style.GetValueOrDefault("strokeColor"));
 
     private static bool IsPanel(string id, PixelBox box, SceneCanvas canvas) =>
         id.Contains("panel", StringComparison.OrdinalIgnoreCase)
         || id.EndsWith("_box", StringComparison.OrdinalIgnoreCase) && box.Width > canvas.WidthPx * .2;
 
-    private static bool IsDecorativeEdge(IReadOnlyDictionary<string, string> style) =>
-        style.GetValueOrDefault("edgeStyle") == "none"
-        && IsNone(style.GetValueOrDefault("endArrow"))
-        && IsNone(style.GetValueOrDefault("startArrow"));
+    private static bool IsDecorativeEdge(
+        IReadOnlyDictionary<string, string> style,
+        XElement source,
+        XElement target) =>
+        IsNone(style.GetValueOrDefault("endArrow"))
+        && IsNone(style.GetValueOrDefault("startArrow"))
+        && (style.GetValueOrDefault("edgeStyle") == "none"
+            || IsInvisibleAnchor(source) && IsInvisibleAnchor(target));
+
+    private static bool IsInvisibleAnchor(XElement cell)
+    {
+        if (!string.IsNullOrEmpty((string?)cell.Attribute("value"))) return false;
+        var style = ParseStyle((string?)cell.Attribute("style"));
+        return IsNone(style.GetValueOrDefault("fillColor"))
+            && IsNone(style.GetValueOrDefault("strokeColor"))
+            && Number(style.GetValueOrDefault("opacity"), 100) == 0;
+    }
 
     private static string MapRouting(IReadOnlyDictionary<string, string> style, IReadOnlyList<PixelPoint> points)
     {
