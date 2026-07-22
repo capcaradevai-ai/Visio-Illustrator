@@ -56,6 +56,8 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_inspect_file",
     "visio_export",
     "visio_compile_drawio_scene",
+    "visio_compare_preview",
+    "visio_validate_fidelity",
   ]);
 });
 

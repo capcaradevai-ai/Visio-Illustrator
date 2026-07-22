@@ -1131,6 +1131,33 @@ export const fileTools = [
       additionalProperties: false,
     },
   },
+  {
+    name: "visio_compare_preview",
+    description: "Compare equal-size PNG previews using pixel error, edge precision/recall/F1, coverage, color difference, and an optional heatmap.",
+    inputSchema: {
+      type: "object", required: ["reference_path", "candidate_path"],
+      properties: {
+        reference_path: absolutePath("png", "Reference PNG."),
+        candidate_path: absolutePath("png", "Candidate PNG."),
+        heatmap_path: absolutePath("png", "Optional difference heatmap output."),
+        overwrite: { type: "boolean", default: false },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_validate_fidelity",
+    description: "Validate SceneGraph IDs, exact text, primitive budget, groups, and double-ended connector glue against a saved VSDX.",
+    inputSchema: {
+      type: "object", required: ["scene_path", "input_path"],
+      properties: {
+        scene_path: absolutePath("json", "Scientific SceneGraph JSON."),
+        input_path: absolutePath("vsdx", "Editable Visio document."),
+        minimum_primitive_ratio: { type: "number", exclusiveMinimum: 0, maximum: 1, default: 0.9 },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
 
 export function findTool(tools, name) {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createInterface } from "node:readline";
+import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BridgeClient, resolveBridgeExecutable } from "./bridge-client.mjs";
@@ -13,6 +14,7 @@ import {
   validateSchema,
 } from "./mcp-common.mjs";
 import { fileTools, findTool } from "./tool-schemas.mjs";
+import { comparePngFiles } from "./visual-compare.mjs";
 
 const serverName = "visio-file-utils";
 const serverVersion = "0.1.0";
@@ -31,11 +33,25 @@ async function getBridgeClient() {
 }
 
 async function handleTool(name, args) {
+  if (name === "visio_compare_preview") {
+    if (args.heatmap_path && !args.overwrite) {
+      try {
+        await fs.access(args.heatmap_path);
+        const error = new Error(`Output already exists: ${args.heatmap_path}`);
+        error.bridgeError = { code: "OUTPUT_EXISTS", message: error.message, retryable: false };
+        throw error;
+      } catch (error) {
+        if (error?.code !== "ENOENT") throw error;
+      }
+    }
+    return comparePngFiles(args.reference_path, args.candidate_path, args.heatmap_path);
+  }
   const client = await getBridgeClient();
   if (name === "visio_validate") return client.call("validate", args);
   if (name === "visio_inspect_file") return client.call("inspect_file", args);
   if (name === "visio_export") return client.call("export", args, 120000);
   if (name === "visio_compile_drawio_scene") return client.call("compile_drawio_scene", args, 120000);
+  if (name === "visio_validate_fidelity") return client.call("validate_fidelity", args, 120000);
   return {
     error: "UNSUPPORTED_OPERATION",
     message: `不支持工具: ${name}`,
@@ -51,7 +67,7 @@ async function handleMessage(message) {
       protocolVersion: supportedProtocols.has(requested) ? requested : "2025-06-18",
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: serverName, version: serverVersion },
-      instructions: "Use absolute paths for editable VSDX validation, inspection, and export.",
+      instructions: "Use absolute paths for VSDX validation, draw.io compilation, preview comparison, fidelity inspection, and export.",
     });
   }
   if (method === "ping") return rpcResult(id, {});
