@@ -55,6 +55,8 @@ public interface IVisioSession : IDisposable
 
     LayoutMutationResult DuplicateShape(DuplicateShapeCommand command);
 
+    ScientificComponentMutationResult AddScientificComponent(AddScientificComponentCommand command);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,

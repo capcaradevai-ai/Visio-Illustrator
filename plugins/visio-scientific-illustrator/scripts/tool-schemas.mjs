@@ -344,6 +344,7 @@ const shapeProperties = {
     enum: [
       "rectangle", "ellipse", "text", "rounded_rectangle", "diamond",
       "cylinder", "hexagon", "triangle", "parallelogram", "cloud", "container",
+      "tensor_face", "video_frame", "latent_vector", "snowflake", "router", "antenna", "stage_panel",
     ],
   },
   bounds,
@@ -885,6 +886,42 @@ export const liveTools = [
         new_semantic_id: semanticId,
         offset_x: { type: "number", default: 20 },
         offset_y: { type: "number", default: 20 },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_add_scientific_component",
+    description: "Build a parameterized scientific illustration as grouped, individually editable Visio primitives.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_id", "component", "bounds"],
+      properties: {
+        semantic_id: semanticId,
+        component: {
+          type: "string",
+          enum: [
+            "number_badge", "router", "human_silhouette", "joint_skeleton",
+            "video_frame_stack", "tensor_cube", "latent_vector", "waveform",
+            "snowflake", "wireless_link", "stage_panel",
+          ],
+        },
+        bounds,
+        options: {
+          type: "object",
+          properties: {
+            title: { type: "string", maxLength: 500 },
+            label: { type: "string", maxLength: 100 },
+            primary_color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+            secondary_color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+            rows: { type: "integer", minimum: 2, maximum: 100 },
+            columns: { type: "integer", minimum: 2, maximum: 100 },
+            count: { type: "integer", minimum: 1, maximum: 30 },
+            show_labels: { type: "boolean" },
+            image_path: absolutePath("png|jpg|jpeg|svg|emf", "Optional local image inside a video-frame component."),
+          },
+          additionalProperties: false,
+        },
       },
       additionalProperties: false,
     },

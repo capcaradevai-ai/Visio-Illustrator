@@ -43,6 +43,7 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_match_size",
     "visio_live_set_protection",
     "visio_live_duplicate_shape",
+    "visio_live_add_scientific_component",
   ]);
   assert.equal(JSON.stringify(liveTools).includes("drawio"), false);
   assert.deepEqual(fileTools.map((tool) => tool.name), [
@@ -50,6 +51,27 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_inspect_file",
     "visio_export",
   ]);
+});
+
+test("scientific component schema is bounded and editable", () => {
+  const component = liveTools.find((tool) => tool.name === "visio_live_add_scientific_component");
+  assert.doesNotThrow(() => validateSchema({
+    semantic_id: "tensor",
+    component: "tensor_cube",
+    bounds: { x: 100, y: 100, width: 500, height: 350 },
+    options: { rows: 6, columns: 8, primary_color: "#245B91" },
+  }, component.inputSchema));
+  assert.throws(() => validateSchema({
+    semantic_id: "tensor",
+    component: "tensor_cube",
+    bounds: { x: 100, y: 100, width: 500, height: 350 },
+    options: { rows: 101 },
+  }, component.inputSchema));
+  assert.throws(() => validateSchema({
+    semantic_id: "x",
+    component: "icon",
+    bounds: { x: 0, y: 0, width: 10, height: 10 },
+  }, component.inputSchema));
 });
 
 test("layout schemas expose native Visio composition operations", () => {

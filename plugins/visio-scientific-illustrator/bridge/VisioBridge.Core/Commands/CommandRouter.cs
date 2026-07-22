@@ -40,6 +40,7 @@ public sealed class CommandRouter
         "match_size" => _session.MatchSize(Deserialize<MatchSizeCommand>(parameters)),
         "set_protection" => _session.SetProtection(Deserialize<SetProtectionCommand>(parameters)),
         "duplicate_shape" => _session.DuplicateShape(Deserialize<DuplicateShapeCommand>(parameters)),
+        "add_scientific_component" => _session.AddScientificComponent(Deserialize<AddScientificComponentCommand>(parameters)),
         "close_document" => CloseDocument(Deserialize<CloseDocumentCommand>(parameters)),
         "shutdown" => Shutdown(Deserialize<ShutdownCommand>(parameters)),
         _ => throw BridgeCommandException.Unsupported($"不支持命令: {command}"),

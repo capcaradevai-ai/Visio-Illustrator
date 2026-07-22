@@ -32,6 +32,8 @@ internal sealed class ConnectionPointService
 
     internal static IReadOnlyDictionary<string, ConnectionPointDefinition> StandardAnchors => AnchorDefinitions;
 
+    internal static void EnsureStandardAnchorsForShape(Visio.Shape shape) => EnsureStandardAnchors(shape);
+
     public static string SelectAutoAnchor(double dx, double dy)
     {
         if (!double.IsFinite(dx) || !double.IsFinite(dy) || (dx == 0 && dy == 0))

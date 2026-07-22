@@ -213,6 +213,16 @@ public sealed class VisioSession : IVisioSession
             }
         });
 
+    public int ReadGroupChildCountForIntegrationTest(string semanticId)
+        => InvokeReady(() =>
+        {
+            var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+            using var handle = repository.Resolve(semanticId);
+            var children = ((VisioShapeHandle)handle).Shape.Shapes;
+            try { return children.Count; }
+            finally { Marshal.FinalReleaseComObject(children); }
+        });
+
     public SaveResult Save(SaveCommand command)
         => InvokeReady(() =>
         {
@@ -264,6 +274,11 @@ public sealed class VisioSession : IVisioSession
 
     public LayoutMutationResult DuplicateShape(DuplicateShapeCommand command) =>
         ExecuteUndoable("Codex duplicate shape", () => CreateLayoutService().Duplicate(command));
+
+    public ScientificComponentMutationResult AddScientificComponent(AddScientificComponentCommand command) =>
+        ExecuteUndoable(
+            "Codex add scientific component",
+            () => CreateScientificComponentFactory().Add(command));
 
     public void UndoLastForIntegrationTest()
         => InvokeReady(() => RequireReadyApplication().Undo());
@@ -940,6 +955,20 @@ public sealed class VisioSession : IVisioSession
         var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
         var inspector = new PageInspector(_document!, _page!, geometry);
         return new LayoutService(_page!, repository, geometry, inspector);
+    }
+
+    private ScientificComponentFactory CreateScientificComponentFactory()
+    {
+        RequireReadyApplication();
+        var geometry = new GeometryConverter(_canvas!);
+        var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+        var inspector = new PageInspector(_document!, _page!, geometry);
+        var shapeFactory = new ShapeFactory(
+            _page!, geometry, repository, GetMasterCatalog(), inspector);
+        var pathFactory = new FreeformBuilder(_page!, geometry, repository, inspector);
+        var grouping = new VisioGroupingService(_page!, repository);
+        return new ScientificComponentFactory(
+            shapeFactory, pathFactory, grouping, repository, inspector);
     }
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)

@@ -80,6 +80,9 @@ public sealed class VisioFixture : IDisposable
     public double ReadCellResult(string semanticId, string cellName) =>
         _session.ReadCellResultForIntegrationTest(semanticId, cellName);
 
+    public int ReadGroupChildCount(string semanticId) =>
+        _session.ReadGroupChildCountForIntegrationTest(semanticId);
+
     public PreviewResult ExportPreview(int widthPx) =>
         _session.ExportPreview(widthPx);
 
@@ -115,6 +118,9 @@ public sealed class VisioFixture : IDisposable
 
     public LayoutMutationResult DuplicateShape(DuplicateShapeCommand command) =>
         _session.DuplicateShape(command);
+
+    public ScientificComponentMutationResult AddScientificComponent(AddScientificComponentCommand command) =>
+        _session.AddScientificComponent(command);
 
     public static VisioFixture WithOneShape()
     {

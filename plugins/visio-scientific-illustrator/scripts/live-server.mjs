@@ -86,6 +86,7 @@ async function handleTool(name, args) {
   if (name === "visio_live_match_size") return client.call("match_size", args);
   if (name === "visio_live_set_protection") return client.call("set_protection", args);
   if (name === "visio_live_duplicate_shape") return client.call("duplicate_shape", args);
+  if (name === "visio_live_add_scientific_component") return client.call("add_scientific_component", args);
   return { error: "UNSUPPORTED_OPERATION", message: `不支持工具: ${name}`, tool: name };
 }
 

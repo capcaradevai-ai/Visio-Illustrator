@@ -13,6 +13,13 @@ public sealed class MasterCatalogTests
     [InlineData("triangle", "Codex Triangle")]
     [InlineData("parallelogram", "Codex Parallelogram")]
     [InlineData("cloud", "Codex Cloud")]
+    [InlineData("tensor_face", "Codex Tensor Face")]
+    [InlineData("video_frame", "Codex Video Frame")]
+    [InlineData("latent_vector", "Codex Latent Vector")]
+    [InlineData("snowflake", "Codex Snowflake")]
+    [InlineData("router", "Codex Router")]
+    [InlineData("antenna", "Codex Antenna")]
+    [InlineData("stage_panel", "Codex Stage Panel")]
     [InlineData("container", "Codex Container")]
     public void Shape_type_maps_to_fixed_master_name(string shapeType, string masterName)
     {

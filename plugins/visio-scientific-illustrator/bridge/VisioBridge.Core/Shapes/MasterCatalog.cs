@@ -16,6 +16,13 @@ public sealed class MasterCatalog : IDisposable
             ["triangle"] = "Codex Triangle",
             ["parallelogram"] = "Codex Parallelogram",
             ["cloud"] = "Codex Cloud",
+            ["tensor_face"] = "Codex Tensor Face",
+            ["video_frame"] = "Codex Video Frame",
+            ["latent_vector"] = "Codex Latent Vector",
+            ["snowflake"] = "Codex Snowflake",
+            ["router"] = "Codex Router",
+            ["antenna"] = "Codex Antenna",
+            ["stage_panel"] = "Codex Stage Panel",
             ["container"] = "Codex Container",
         };
 
