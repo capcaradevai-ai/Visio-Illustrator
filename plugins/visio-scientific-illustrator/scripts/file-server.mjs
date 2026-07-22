@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 
 import { createInterface } from "node:readline";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { BridgeClient, resolveBridgeExecutable } from "./bridge-client.mjs";
 import {
   rpcError,
   rpcResult,
@@ -13,6 +16,29 @@ const serverName = "visio-file-utils";
 const serverVersion = "0.1.0";
 const supportedProtocols = new Set(["2024-11-05", "2025-03-26", "2025-06-18"]);
 const queue = new SerialQueue();
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+let bridgeClient = null;
+
+async function getBridgeClient() {
+  if (bridgeClient) return bridgeClient;
+  const executable = resolveBridgeExecutable(pluginRoot);
+  const client = new BridgeClient(executable, ["--mode", "file"], { cwd: pluginRoot });
+  await client.start();
+  bridgeClient = client;
+  return bridgeClient;
+}
+
+async function handleTool(name, args) {
+  if (name !== "visio_file_validate") {
+    return {
+      error: "UNSUPPORTED_OPERATION",
+      message: `不支持工具: ${name}`,
+      tool: name,
+    };
+  }
+  const client = await getBridgeClient();
+  return client.call("validate", args);
+}
 
 async function handleMessage(message) {
   const { id, method, params } = message;
@@ -28,11 +54,18 @@ async function handleMessage(message) {
   if (method === "ping") return rpcResult(id, {});
   if (method === "tools/list") return rpcResult(id, { tools: fileTools });
   if (method === "tools/call") {
-    return rpcResult(id, toolResult({
-      error: "BRIDGE_NOT_BUILT",
-      message: "VisioBridge 尚未构建。",
-      tool: params?.name,
-    }, { isError: true }));
+    try {
+      const value = await handleTool(params?.name, params?.arguments || {});
+      return rpcResult(id, toolResult(value, { isError: Boolean(value?.error) }));
+    } catch (error) {
+      return rpcResult(id, toolResult({
+        error: error.bridgeError?.code || "BRIDGE_ERROR",
+        message: error.message,
+        retryable: error.bridgeError?.retryable ?? false,
+        details: error.bridgeError?.details,
+        tool: params?.name,
+      }, { isError: true }));
+    }
   }
   if (method?.startsWith("notifications/")) return null;
   return rpcError(id, -32601, `Method not found: ${method}`);
@@ -56,4 +89,9 @@ lines.on("line", (line) => {
       process.stdout.write(`${JSON.stringify(rpcError(message.id, -32603, "Internal error", error.message))}\n`);
     }
   }).catch((error) => process.stderr.write(`[${serverName}] ${error.stack || error.message}\n`));
+});
+lines.on("close", () => {
+  bridgeClient?.stop().catch((error) => {
+    process.stderr.write(`[${serverName}] ${error.stack || error.message}\n`);
+  });
 });

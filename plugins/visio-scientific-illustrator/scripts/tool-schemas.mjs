@@ -21,6 +21,14 @@ export const liveTools = [{
   name: "visio_live_launch",
   description: "Launch a plugin-owned visible Microsoft Visio document.",
   inputSchema: launchSchema,
+}, {
+  name: "visio_live_status",
+  description: "Report the state of the plugin-owned Microsoft Visio session.",
+  inputSchema: {
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  },
 }];
 
 export const fileTools = [{
