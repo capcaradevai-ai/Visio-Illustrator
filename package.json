@@ -5,7 +5,7 @@
   "description": "Build and validation helpers for the Visio Scientific Illustrator Codex plugin marketplace.",
   "type": "module",
   "scripts": {
-    "check": "node --check plugins/visio-scientific-illustrator/scripts/mcp-common.mjs && node --check plugins/visio-scientific-illustrator/scripts/bridge-client.mjs && node --check plugins/visio-scientific-illustrator/scripts/live-server.mjs && node --check plugins/visio-scientific-illustrator/scripts/file-server.mjs && node scripts/validate-repo.mjs",
+    "check": "node --check plugins/visio-scientific-illustrator/scripts/mcp-common.mjs && node --check plugins/visio-scientific-illustrator/scripts/tool-schemas.mjs && node --check plugins/visio-scientific-illustrator/scripts/live-server.mjs && node --check plugins/visio-scientific-illustrator/scripts/file-server.mjs && node scripts/validate-repo.mjs",
     "test:node": "node --test tests/node/*.test.mjs",
     "build:bridge": "powershell -ExecutionPolicy Bypass -File scripts/build-bridge.ps1",
     "test:bridge": "dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.sln -c Release --filter \"Category!=VisioIntegration\"",

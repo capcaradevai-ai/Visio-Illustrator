@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const serverFiles = [
-  "plugins/drawio-scientific-illustrator/scripts/live-server.mjs",
-  "plugins/drawio-scientific-illustrator/scripts/server.mjs",
+  "plugins/visio-scientific-illustrator/scripts/live-server.mjs",
+  "plugins/visio-scientific-illustrator/scripts/file-server.mjs",
 ];
 
 async function testServer(relativeFile) {
@@ -45,6 +45,7 @@ async function testServer(relativeFile) {
     if (responses.get(1)?.error) throw new Error(JSON.stringify(responses.get(1).error));
     const tools = responses.get(2)?.result?.tools;
     if (!Array.isArray(tools) || tools.length === 0) throw new Error(`${relativeFile} returned no tools.`);
+    if (tools.some((tool) => /drawio/i.test(tool.name))) throw new Error(`${relativeFile} returned a draw.io tool name.`);
     console.log(`${relativeFile}: ${tools.length} tools`);
   } finally {
     lines.close();
