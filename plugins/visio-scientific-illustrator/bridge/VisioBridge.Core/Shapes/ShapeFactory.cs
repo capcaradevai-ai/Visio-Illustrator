@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Geometry;
+using VisioBridge.Core.Inspection;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Shapes;
@@ -15,17 +16,20 @@ internal sealed class ShapeFactory
     private readonly GeometryConverter _geometry;
     private readonly ShapeRepository _repository;
     private readonly MasterCatalog _masterCatalog;
+    private readonly PageInspector _inspector;
 
     public ShapeFactory(
         Visio.Page page,
         GeometryConverter geometry,
         ShapeRepository repository,
-        MasterCatalog masterCatalog)
+        MasterCatalog masterCatalog,
+        PageInspector inspector)
     {
         _page = page;
         _geometry = geometry;
         _repository = repository;
         _masterCatalog = masterCatalog;
+        _inspector = inspector;
     }
 
     public ShapeMutationResult Add(AddShapeCommand command)
@@ -52,14 +56,14 @@ internal sealed class ShapeFactory
             }
             StyleMapper.Apply(shape, command.Style);
             using var handle = new VisioShapeHandle(shape);
+            shape = null;
             _repository.Register(handle, command.SemanticId);
             var result = new ShapeMutationResult(
                 command.SemanticId,
                 handle.Id,
                 handle.NameU,
-                command.Bounds,
+                _inspector.ReadBounds(handle.Shape),
                 command.Shape);
-            shape = null;
             return result;
         }
         catch
@@ -91,18 +95,18 @@ internal sealed class ShapeFactory
         {
             SetGeometry(shape, box);
             using var handle = new VisioShapeHandle(shape);
+            shape = null;
             _repository.Register(handle, command.SemanticId);
             var extension = Path.GetExtension(command.FilePath);
             var result = new ShapeMutationResult(
                 command.SemanticId,
                 handle.Id,
                 handle.NameU,
-                command.Bounds,
+                _inspector.ReadBounds(handle.Shape),
                 "image",
                 extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
                     || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
                     || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase));
-            shape = null;
             return result;
         }
         catch

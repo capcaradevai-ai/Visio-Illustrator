@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
+using VisioBridge.Core.Geometry;
+using VisioBridge.Core.Interop;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Shapes;
@@ -17,31 +19,96 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
 
     private readonly Visio.Page _page;
     private readonly Visio.InvisibleApp _application;
+    private readonly GeometryConverter _geometry;
 
-    public VisioConnectorAdapter(Visio.Page page, Visio.InvisibleApp application)
+    public VisioConnectorAdapter(
+        Visio.Page page,
+        Visio.InvisibleApp application,
+        GeometryConverter geometry)
     {
         _page = page;
         _application = application;
+        _geometry = geometry;
     }
 
-    public IShapeHandle Create(IShapeHandle source, IShapeHandle target)
+    public IShapeHandle Create(
+        IShapeHandle source,
+        IShapeHandle target,
+        string routing,
+        IReadOnlyList<PixelPoint>? waypoints)
     {
         var sourceShape = RequireVisio(source);
         var targetShape = RequireVisio(target);
-        var sourcePoint = ReadPin(sourceShape.Shape);
-        var targetPoint = ReadPin(targetShape.Shape);
+        var sourcePoint = ReadPagePin(sourceShape.Shape, "read_source_pin");
+        var targetPoint = ReadPagePin(targetShape.Shape, "read_target_pin");
+        if (routing == "polyline")
+        {
+            var values = new List<double> { sourcePoint.X, sourcePoint.Y };
+            foreach (var waypoint in waypoints!)
+            {
+                var point = _geometry.ToVisioPoint(waypoint);
+                values.Add(point.X);
+                values.Add(point.Y);
+            }
+            values.Add(targetPoint.X);
+            values.Add(targetPoint.Y);
+            Array points = values.ToArray();
+            Visio.Shape? polyline = null;
+            try
+            {
+                try
+                {
+                    polyline = _page.DrawPolyline(
+                        ref points,
+                        (short)Visio.VisDrawSplineFlags.visPolyline1D);
+                }
+                catch (COMException error)
+                {
+                    throw ConnectorComError(
+                        error,
+                        "draw_polyline",
+                        BridgeErrorCodes.InvalidCoordinates);
+                }
+                StyleMapper.SetFormula(polyline, "ObjType", "2");
+                StyleMapper.SetFormula(polyline, "GlueType", "2");
+                var handle = new VisioShapeHandle(polyline);
+                polyline = null;
+                return handle;
+            }
+            finally
+            {
+                Release(ref polyline);
+            }
+        }
+
         object? connectorData = null;
+        Visio.Shape? connector = null;
         try
         {
             connectorData = _application.ConnectorToolDataObject;
-            var connector = _page.Drop(
+            connector = _page.Drop(
                 connectorData,
                 (sourcePoint.X + targetPoint.X) / 2,
                 (sourcePoint.Y + targetPoint.Y) / 2);
-            return new VisioShapeHandle(connector);
+            StyleMapper.SetFormula(
+                connector,
+                "ShapeRouteStyle",
+                routing switch
+                {
+                    "dynamic" => "0",
+                    "right_angle" => "1",
+                    "straight" => "2",
+                    _ => throw new BridgeCommandException(
+                        BridgeErrorCodes.InvalidArgument,
+                        $"不支持 connector routing: {routing}"),
+                });
+            var handle = new VisioShapeHandle(connector);
+            connector = null;
+            return handle;
         }
         finally
         {
+            Release(ref connector);
             if (connectorData is not null && Marshal.IsComObject(connectorData))
             {
                 Marshal.ReleaseComObject(connectorData);
@@ -49,7 +116,12 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         }
     }
 
-    public void Glue(IShapeHandle connector, IShapeHandle source, IShapeHandle target)
+    public void Glue(
+        IShapeHandle connector,
+        IShapeHandle source,
+        IShapeHandle target,
+        int? sourceConnectionPoint,
+        int? targetConnectionPoint)
     {
         var connectorShape = RequireVisio(connector).Shape;
         var sourceShape = RequireVisio(source).Shape;
@@ -62,8 +134,8 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         {
             begin = connectorShape.CellsU["BeginX"];
             end = connectorShape.CellsU["EndX"];
-            sourcePin = sourceShape.CellsU["PinX"];
-            targetPin = targetShape.CellsU["PinX"];
+            sourcePin = GetConnectionCell(sourceShape, sourceConnectionPoint);
+            targetPin = GetConnectionCell(targetShape, targetConnectionPoint);
             begin.GlueTo(sourcePin);
             end.GlueTo(targetPin);
         }
@@ -74,6 +146,11 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
             Release(ref end);
             Release(ref begin);
         }
+    }
+
+    public void SetLabel(IShapeHandle connector, string? label)
+    {
+        if (label is not null) RequireVisio(connector).Shape.Text = label;
     }
 
     public void ApplyStyle(IShapeHandle connector, ConnectorStyle? style)
@@ -112,8 +189,8 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         IShapeHandle target)
     {
         var connectorShape = RequireVisio(connector).Shape;
-        var expected = new HashSet<int> { source.Id, target.Id };
-        var matched = new HashSet<int>();
+        var beginMatched = false;
+        var endMatched = false;
         var connects = connectorShape.Connects;
         try
         {
@@ -124,7 +201,20 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
                 try
                 {
                     toShape = connection.ToSheet;
-                    if (expected.Contains(toShape.ID)) matched.Add(toShape.ID);
+                    if (connection.FromPart is
+                            (short)Visio.VisFromParts.visBeginX or
+                            (short)Visio.VisFromParts.visBegin
+                        && toShape.ID == source.Id)
+                    {
+                        beginMatched = true;
+                    }
+                    if (connection.FromPart is
+                            (short)Visio.VisFromParts.visEndX or
+                            (short)Visio.VisFromParts.visEnd
+                        && toShape.ID == target.Id)
+                    {
+                        endMatched = true;
+                    }
                 }
                 finally
                 {
@@ -137,7 +227,7 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         {
             Marshal.ReleaseComObject(connects);
         }
-        return matched.Count;
+        return (beginMatched ? 1 : 0) + (endMatched ? 1 : 0);
     }
 
     public void Delete(IShapeHandle connector) => RequireVisio(connector).Shape.Delete();
@@ -148,21 +238,65 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
             BridgeErrorCodes.InternalError,
             "Connector adapter 收到非 Visio Shape handle。");
 
-    private static (double X, double Y) ReadPin(Visio.Shape shape)
+    private static Visio.Cell GetConnectionCell(Visio.Shape shape, int? row)
+    {
+        var cellName = row.HasValue ? $"Connections.X{row.Value}" : "PinX";
+        if (shape.CellExistsU[cellName, 0] == 0)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.CellNotFound,
+                $"Shape {shape.NameU} 不存在连接点 {cellName}。");
+        }
+        return shape.CellsU[cellName];
+    }
+
+    private static (double X, double Y) ReadPagePin(
+        Visio.Shape shape,
+        string phase)
     {
         Visio.Cell? pinX = null;
         Visio.Cell? pinY = null;
+        Visio.Shape? containingShape = null;
         try
         {
             pinX = shape.CellsU["PinX"];
             pinY = shape.CellsU["PinY"];
-            return (pinX.ResultIU, pinY.ResultIU);
+            var pageX = pinX.ResultIU;
+            var pageY = pinY.ResultIU;
+            containingShape = shape.ContainingShape;
+            if (containingShape is not null)
+            {
+                containingShape.XYToPage(pageX, pageY, out pageX, out pageY);
+            }
+            return (pageX, pageY);
+        }
+        catch (COMException error)
+        {
+            throw ConnectorComError(
+                error,
+                phase,
+                BridgeErrorCodes.InvalidCoordinates);
         }
         finally
         {
+            Release(ref containingShape);
             Release(ref pinY);
             Release(ref pinX);
         }
+    }
+
+    private static BridgeCommandException ConnectorComError(
+        COMException error,
+        string phase,
+        string code)
+    {
+        var translated = ComExceptionTranslator.Translate(error);
+        return translated.Code == BridgeErrorCodes.VisioBusy
+            ? translated
+            : new BridgeCommandException(
+                code,
+                $"Visio connector 操作失败: {phase}。",
+                details: new { phase, hresult = error.HResult, reason = error.Message });
     }
 
     private static void ApplyArrow(Visio.Shape shape, string cellName, string? arrow)

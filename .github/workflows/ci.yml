@@ -26,3 +26,9 @@ jobs:
         with:
           dotnet-version: 8.0.x
       - run: dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.sln -c Release --filter "Category!=VisioIntegration"
+      - run: npm run build:bridge
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visio-scientific-illustrator-win-x64
+          path: plugins/visio-scientific-illustrator/bin/win-x64/
+          if-no-files-found: error

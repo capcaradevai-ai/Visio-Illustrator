@@ -32,11 +32,14 @@ public sealed class FileModeIntegrationTests
             using var service = new VisioFileModeService();
             var validation = service.Validate(new ValidateFileCommand(source));
             var inspection = service.Inspect(new InspectFileCommand(source, 500));
+            var pngPath = Path.Combine(directory, "output.png");
+            File.WriteAllText(pngPath, "pre-existing output");
             var png = service.Export(new ExportFileCommand(
                 source,
                 "png",
-                Path.Combine(directory, "output.png"),
+                pngPath,
                 "current",
+                Overwrite: true,
                 Width: 2000));
             var svg = service.Export(new ExportFileCommand(
                 source,
@@ -50,6 +53,7 @@ public sealed class FileModeIntegrationTests
                 "all"));
 
             Assert.True(validation.Valid);
+            Assert.True(png.Overwritten);
             Assert.Single(inspection.Pages);
             Assert.Contains(
                 inspection.Pages[0].Shapes,

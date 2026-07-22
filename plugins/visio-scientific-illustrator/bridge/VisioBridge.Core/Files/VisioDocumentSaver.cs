@@ -5,22 +5,39 @@ namespace VisioBridge.Core.Files;
 
 internal sealed class VisioDocumentSaver : IDocumentSaver
 {
-    private readonly Visio.Document _document;
+    private readonly Func<object> _documentProvider;
+    private readonly Action _closeForCommit;
+    private readonly Action<string> _reopen;
 
-    public VisioDocumentSaver(Visio.Document document) => _document = document;
+    public VisioDocumentSaver(
+        Func<object> documentProvider,
+        Action closeForCommit,
+        Action<string> reopen)
+    {
+        _documentProvider = documentProvider
+            ?? throw new ArgumentNullException(nameof(documentProvider));
+        _closeForCommit = closeForCommit
+            ?? throw new ArgumentNullException(nameof(closeForCommit));
+        _reopen = reopen ?? throw new ArgumentNullException(nameof(reopen));
+    }
 
     public void Save(string absoluteVsDxPath)
     {
-        var current = _document.FullName;
+        var document = (Visio.Document)_documentProvider();
+        var current = document.FullName;
         if (Path.IsPathFullyQualified(current)
             && string.Equals(
                 Path.GetFullPath(current),
                 Path.GetFullPath(absoluteVsDxPath),
                 StringComparison.OrdinalIgnoreCase))
         {
-            _document.Save();
+            document.Save();
             return;
         }
-        _document.SaveAsEx(absoluteVsDxPath, 0);
+        document.SaveAsEx(absoluteVsDxPath, 0);
     }
+
+    public void CloseForCommit() => _closeForCommit();
+
+    public void Reopen(string absoluteVsDxPath) => _reopen(absoluteVsDxPath);
 }

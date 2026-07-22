@@ -8,6 +8,7 @@ import { BridgeClient, resolveBridgeExecutable } from "./bridge-client.mjs";
 import {
   rpcError,
   rpcResult,
+  mapSequenceError,
   mapToolError,
   SerialQueue,
   toolResult,
@@ -37,17 +38,19 @@ async function handleTool(name, args) {
   const client = await getBridgeClient();
   if (name === "visio_live_launch") {
     const canvas = args.canvas || {};
-    const common = {
-      width_px: canvas.width_px ?? 1600,
-      height_px: canvas.height_px ?? 1000,
-      dpi: canvas.dpi ?? 96,
-      maximize: args.maximize ?? true,
-    };
     const result = args.mode === "open"
-      ? await client.call("open_document", { file_path: args.file_path, ...common })
+      ? await client.call("open_document", {
+        file_path: args.file_path,
+        ...(args.page_name === undefined ? {} : { page_name: args.page_name }),
+        dpi: canvas.dpi ?? 96,
+        maximize: args.maximize ?? true,
+      })
       : await client.call("launch_new", {
         page_name: args.page_name ?? "Figure",
-        ...common,
+        width_px: canvas.width_px ?? 1600,
+        height_px: canvas.height_px ?? 1000,
+        dpi: canvas.dpi ?? 96,
+        maximize: args.maximize ?? true,
       });
     sessionTempRoot = path.resolve(result.sessionTempRoot);
     defaultStepDelayMs = args.step_delay_ms ?? 500;
@@ -121,12 +124,7 @@ async function drawSequence(client, args) {
         applied_count: results.length,
         failed_index: index,
         results,
-        error: {
-          code: error.bridgeError?.code || "INTERNAL_ERROR",
-          message: error.message,
-          retryable: error.bridgeError?.retryable ?? false,
-          details: error.bridgeError?.details,
-        },
+        error: mapSequenceError(error),
       };
     }
   }

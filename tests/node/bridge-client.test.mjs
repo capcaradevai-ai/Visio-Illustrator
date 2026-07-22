@@ -25,9 +25,67 @@ test("BridgeClient rejects timed out calls", async () => {
   const client = new BridgeClient(process.execPath, [path.join(here, "fake-bridge.mjs")]);
   await client.start();
 
-  await assert.rejects(() => client.call("hang", {}, 20), /BRIDGE_TIMEOUT/);
+  await assert.rejects(
+    () => client.call("hang", {}, 20),
+    (error) => error.code === "BRIDGE_TIMEOUT" && error.details.command === "hang",
+  );
 
   await client.stop();
+});
+
+test("BridgeClient records a terminal exit and rejects later calls immediately", async () => {
+  const client = new BridgeClient(process.execPath, [path.join(here, "fake-bridge.mjs")]);
+  await client.start();
+
+  await assert.rejects(
+    () => client.call("exit", {}, 1000),
+    (error) => error.code === "BRIDGE_EXITED",
+  );
+  const started = Date.now();
+  await assert.rejects(
+    () => client.call("status", {}, 1000),
+    (error) => error.code === "BRIDGE_EXITED",
+  );
+
+  assert.ok(Date.now() - started < 100);
+  assert.equal(client.child, null);
+  assert.equal(client.ready, null);
+  await client.stop();
+});
+
+test("BridgeClient terminates a child that emits an invalid protocol frame", async () => {
+  const client = new BridgeClient(process.execPath, [path.join(here, "fake-bridge.mjs")]);
+  await client.start();
+  const child = client.child;
+  const exited = once(child, "exit");
+
+  await assert.rejects(
+    () => client.call("invalid", {}, 1000),
+    (error) => error.code === "BRIDGE_EXITED" && error.details.phase === "protocol",
+  );
+  const [exitCode] = await exited;
+
+  assert.notEqual(exitCode, 0);
+  assert.equal(client.child, null);
+  await client.stop();
+});
+
+test("BridgeClient cleans up a child that never becomes ready", async () => {
+  const client = new BridgeClient(
+    process.execPath,
+    [path.join(here, "fake-bridge.mjs"), "--skip-ready"],
+    { readyTimeoutMs: 20 },
+  );
+
+  try {
+    await assert.rejects(
+      () => client.start(),
+      (error) => error.code === "BRIDGE_TIMEOUT" && error.details.phase === "ready",
+    );
+    assert.equal(client.child, null);
+  } finally {
+    await client.stop();
+  }
 });
 
 test("BridgeClient stop does not keep the Node process alive", async () => {

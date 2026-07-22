@@ -11,8 +11,7 @@ public sealed record LaunchNewCommand(
 
 public sealed record OpenDocumentCommand(
     [property: System.Text.Json.Serialization.JsonPropertyName("file_path")] string FilePath,
-    [property: System.Text.Json.Serialization.JsonPropertyName("width_px")] int WidthPx,
-    [property: System.Text.Json.Serialization.JsonPropertyName("height_px")] int HeightPx,
+    [property: System.Text.Json.Serialization.JsonPropertyName("page_name")] string? PageName,
     int Dpi,
     bool Maximize);
 

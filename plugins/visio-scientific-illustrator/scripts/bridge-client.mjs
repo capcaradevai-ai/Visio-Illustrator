@@ -16,10 +16,12 @@ export class BridgeClient {
     this.ready = null;
     this.resolveReady = null;
     this.rejectReady = null;
+    this.terminalError = null;
   }
 
   async start() {
     if (this.child) throw new Error("BRIDGE_ALREADY_STARTED");
+    this.terminalError = null;
 
     this.child = spawn(this.command, this.args, {
       cwd: this.cwd,
@@ -31,7 +33,12 @@ export class BridgeClient {
 
     const ready = new Promise((resolve, reject) => {
       const timer = setTimeout(
-        () => reject(new Error("BRIDGE_READY_TIMEOUT")),
+        () => reject(new BridgeTransportError(
+          "BRIDGE_TIMEOUT",
+          "Bridge ready handshake timed out.",
+          false,
+          { phase: "ready" },
+        )),
         this.readyTimeoutMs,
       );
       this.resolveReady = (value) => {
@@ -46,24 +53,47 @@ export class BridgeClient {
 
     this.lines.on("line", (line) => this.#handleLine(line));
     this.child.once("error", (error) => {
-      this.#failAll(new Error(`BRIDGE_START_FAILED: ${error.message}`));
+      this.#transitionToTerminal(new BridgeTransportError(
+        "BRIDGE_EXITED",
+        `Bridge process failed: ${error.message}`,
+        false,
+        { phase: "start", reason: error.message },
+      ), true);
     });
-    this.child.once("exit", (code) => {
-      this.#failAll(new Error(`BRIDGE_EXITED: ${code}`));
+    this.child.once("exit", (code, signal) => {
+      this.#transitionToTerminal(new BridgeTransportError(
+        "BRIDGE_EXITED",
+        `Bridge process exited (code=${code}, signal=${signal ?? "none"}).`,
+        false,
+        { exit_code: code, signal },
+      ));
     });
 
-    this.ready = await ready;
-    return this.ready;
+    try {
+      const readyMessage = await ready;
+      if (this.terminalError) throw this.terminalError;
+      this.ready = readyMessage;
+      return this.ready;
+    } catch (error) {
+      await this.stop();
+      throw error;
+    }
   }
 
   call(command, params, timeoutMs = 30000) {
+    if (this.terminalError) return Promise.reject(this.terminalError);
     if (!this.child || !this.ready) return Promise.reject(new Error("BRIDGE_NOT_READY"));
     const id = this.nextId++;
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`BRIDGE_TIMEOUT: ${command}`));
+        reject(new BridgeTransportError(
+          "BRIDGE_TIMEOUT",
+          `Bridge request timed out: ${command}`,
+          false,
+          { command, timeout_ms: timeoutMs },
+        ));
       }, timeoutMs);
       this.pending.set(id, {
         resolve: (value) => {
@@ -109,7 +139,12 @@ export class BridgeClient {
     try {
       message = JSON.parse(line);
     } catch {
-      this.#failAll(new Error("BRIDGE_PROTOCOL_ERROR"));
+      this.#transitionToTerminal(new BridgeTransportError(
+        "BRIDGE_EXITED",
+        "Bridge emitted an invalid protocol frame.",
+        false,
+        { phase: "protocol" },
+      ), true);
       return;
     }
 
@@ -134,6 +169,33 @@ export class BridgeClient {
     this.rejectReady?.(error);
     for (const pending of this.pending.values()) pending.reject(error);
     this.pending.clear();
+  }
+
+  #transitionToTerminal(error, terminateChild = false) {
+    if (this.terminalError) return;
+    this.terminalError = error;
+    const child = this.child;
+    this.#failAll(error);
+    if (terminateChild && child?.exitCode === null) {
+      child.stdin.destroy();
+      child.kill();
+    }
+    this.lines?.close();
+    this.child = null;
+    this.lines = null;
+    this.ready = null;
+    this.resolveReady = null;
+    this.rejectReady = null;
+  }
+}
+
+export class BridgeTransportError extends Error {
+  constructor(code, message, retryable, details) {
+    super(message);
+    this.name = "BridgeTransportError";
+    this.code = code;
+    this.retryable = retryable;
+    this.details = details;
   }
 }
 

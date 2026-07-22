@@ -36,12 +36,12 @@ internal sealed class VisioGroupingService
             }
             group = selection.Group();
             using var groupHandle = new VisioShapeHandle(group);
+            group = null;
             _repository.Register(groupHandle, command.GroupSemanticId);
             var result = new GroupMutationResult(
                 command.GroupSemanticId,
                 groupHandle.Id,
                 command.MemberSemanticIds);
-            group = null;
             return result;
         }
         catch (COMException error)

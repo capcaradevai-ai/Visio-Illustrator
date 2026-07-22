@@ -24,6 +24,7 @@ public sealed class VisioSession : IVisioSession
     private CanvasSpec? _canvas;
     private MasterCatalog? _masterCatalog;
     private int? _boundPageId;
+    private string? _boundPageNameU;
     private volatile SessionState _state = SessionState.Stopped;
     private bool _disposed;
 
@@ -57,34 +58,46 @@ public sealed class VisioSession : IVisioSession
             _document = AddDocument();
             _page = GetFirstPage(_document);
             ConfigurePage(_page, pageName, widthPx, heightPx, dpi);
-            return CompleteLaunch(widthPx, heightPx, dpi, maximize);
+            return CompleteLaunch(
+                new CanvasSpec(widthPx, heightPx, dpi),
+                maximize);
         });
     }
 
     public LaunchResult Open(
         string absoluteVsdxPath,
-        int widthPx,
-        int heightPx,
+        string? pageName,
         int dpi,
         bool maximize)
     {
         ValidateOpenPath(absoluteVsdxPath);
-        ValidateCanvas("Figure", widthPx, heightPx, dpi);
+        ValidateOpenOptions(pageName, dpi);
         EnsureCanLaunch();
         _state = SessionState.Starting;
         return InvokeLaunch(() =>
         {
             StartApplication();
             _document = OpenDocument(absoluteVsdxPath);
-            _page = _application!.ActivePage;
-            if (_page is null) _page = GetFirstPage(_document);
-            return CompleteLaunch(widthPx, heightPx, dpi, maximize);
+            _page = SelectPage(_document, pageName);
+            return CompleteLaunch(ReadCanvas(_page, dpi), maximize);
         });
     }
 
     public SessionStatus GetStatus()
     {
         ThrowIfDisposed();
+        if (_state == SessionState.Invalidated)
+        {
+            return new SessionStatus(
+                SessionState.Invalidated,
+                OwnedProcessId,
+                false,
+                null,
+                null,
+                0,
+                0,
+                false);
+        }
         if (_application is null)
         {
             return new SessionStatus(
@@ -98,23 +111,7 @@ public sealed class VisioSession : IVisioSession
                 false);
         }
 
-        try
-        {
-            return _dispatcher.InvokeAsync(GetStatusCore).GetAwaiter().GetResult();
-        }
-        catch (COMException error)
-        {
-            var translated = ComExceptionTranslator.Translate(error);
-            if (translated.Code == BridgeErrorCodes.VisioBusy)
-            {
-                throw translated;
-            }
-            _state = SessionState.Invalidated;
-            throw new BridgeCommandException(
-                BridgeErrorCodes.SessionInvalidated,
-                "Visio 会话已失效。",
-                details: new { hresult = error.HResult });
-        }
+        return InvokeSession(GetStatusCore);
     }
 
     public ShapeMutationResult AddShape(AddShapeCommand command)
@@ -129,12 +126,7 @@ public sealed class VisioSession : IVisioSession
             () => CreateConnectorService().Add(command));
 
     public PageInspectionResult Inspect(int maxShapes)
-    {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() => CreateInspector().Inspect(maxShapes))
-            .GetAwaiter()
-            .GetResult();
-    }
+        => InvokeReady(() => CreateInspector().Inspect(maxShapes));
 
     public ShapeSnapshot UpdateShape(UpdateShapeCommand command) =>
         ExecuteUndoable("Codex update shape", () => CreateShapeEditor().Update(command));
@@ -146,19 +138,13 @@ public sealed class VisioSession : IVisioSession
         ExecuteUndoable("Codex clear page", () => CreateShapeEditor().Clear(confirm));
 
     public PreviewResult ExportPreview(int widthPx)
-    {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() => new PreviewExporter(
+        => InvokeReady(() => new PreviewExporter(
                 new VisioPreviewExportAdapter(RequireReadyApplication(), _page!),
-                _sessionTempRoot).Export(widthPx))
-            .GetAwaiter()
-            .GetResult();
-    }
+                _sessionTempRoot).Export(widthPx));
 
     public object Fit(string mode)
     {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync<object>(() =>
+        return InvokeReady<object>(() =>
         {
             var application = RequireReadyApplication();
             if (mode is not ("page" or "width"))
@@ -184,32 +170,36 @@ public sealed class VisioSession : IVisioSession
             {
                 ReleaseCom(ref window);
             }
-        }).GetAwaiter().GetResult();
+        });
     }
 
     public RasterSettings ReadRasterSettingsForIntegrationTest()
-    {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() => new VisioPreviewExportAdapter(
+        => InvokeReady(() => new VisioPreviewExportAdapter(
                 RequireReadyApplication(),
-                _page!).ReadSettings())
-            .GetAwaiter()
-            .GetResult();
-    }
+                _page!).ReadSettings());
+
+    public (string FullName, bool Saved) ReadDocumentSaveStateForIntegrationTest()
+        => InvokeReady(() =>
+        {
+            RequireReadyApplication();
+            return (_document!.FullName, _document.Saved);
+        });
 
     public SaveResult Save(SaveCommand command)
-    {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() =>
+        => InvokeReady(() =>
         {
             RequireReadyApplication();
             var service = new VisioFileService(new SafeFileWriter(
-                new VisioDocumentSaver(_document!),
+                new VisioDocumentSaver(
+                    () => (object)(_document ?? throw new BridgeCommandException(
+                        BridgeErrorCodes.SessionNotReady,
+                        "Visio 会话没有可保存的文档。")),
+                    CloseValidatedDocumentForCommit,
+                    ReopenDocumentAfterCommit),
                 new VisioDocumentValidator(),
                 _sessionId));
             return service.Save(command);
-        }).GetAwaiter().GetResult();
-    }
+        });
 
     public GroupMutationResult GroupShapes(GroupShapesCommand command) =>
         ExecuteUndoable(
@@ -227,18 +217,107 @@ public sealed class VisioSession : IVisioSession
             () => CreateGroupingService().AddToContainer(command));
 
     public void UndoLastForIntegrationTest()
+        => InvokeReady(() => RequireReadyApplication().Undo());
+
+    public int AddPageForIntegrationTest(
+        string pageName,
+        int widthPx,
+        int heightPx,
+        int dpi,
+        bool activate)
     {
-        ThrowIfDisposed();
-        _dispatcher.InvokeAsync(() => RequireReadyApplication().Undo())
-            .GetAwaiter()
-            .GetResult();
+        ValidateCanvas(pageName, widthPx, heightPx, dpi);
+        return InvokeReady(() =>
+        {
+            var pages = _document!.Pages;
+            Visio.Page? page = null;
+            try
+            {
+                page = pages.Add();
+                ConfigurePage(page, pageName, widthPx, heightPx, dpi);
+                if (activate) DisplayPage(page);
+                return page.ID;
+            }
+            finally
+            {
+                ReleaseCom(ref page);
+                ReleaseCom(ref pages);
+            }
+        });
     }
+
+    public (string BoundPage, string ActivePage) ReadPageBindingForIntegrationTest()
+        => InvokeSession(() =>
+        {
+            RequireReadyApplication();
+            var activePage = _application!.ActivePage;
+            try
+            {
+                return (_page!.Name, activePage.Name);
+            }
+            finally
+            {
+                ReleaseComAlias(ref activePage);
+            }
+        });
+
+    public void QuitApplicationExternallyForIntegrationTest()
+        => InvokeReady(() =>
+        {
+            _document!.Saved = true;
+            _application!.Quit();
+        });
+
+    public void AddConnectionPointForIntegrationTest(
+        string semanticId,
+        double xFraction,
+        double yFraction)
+        => InvokeReady(() =>
+        {
+            if (!double.IsFinite(xFraction)
+                || !double.IsFinite(yFraction)
+                || xFraction is < 0 or > 1
+                || yFraction is < 0 or > 1)
+            {
+                throw new BridgeCommandException(
+                    BridgeErrorCodes.InvalidArgument,
+                    "测试连接点比例必须在 0–1 范围内。");
+            }
+            var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+            using var handle = repository.Resolve(semanticId);
+            var shape = ((VisioShapeHandle)handle).Shape;
+            var section = (short)Visio.VisSectionIndices.visSectionConnectionPts;
+            if (shape.SectionExists[section, 0] == 0) shape.AddSection(section);
+            var row = shape.AddRow(
+                section,
+                (short)Visio.VisRowIndices.visRowLast,
+                (short)Visio.VisRowTags.visTagCnnctPt);
+            Visio.Cell? x = null;
+            Visio.Cell? y = null;
+            try
+            {
+                x = shape.CellsSRC[
+                    section,
+                    row,
+                    (short)Visio.VisCellIndices.visCnnctX];
+                y = shape.CellsSRC[
+                    section,
+                    row,
+                    (short)Visio.VisCellIndices.visCnnctY];
+                x.FormulaU = $"Width*{xFraction.ToString("0.######", CultureInfo.InvariantCulture)}";
+                y.FormulaU = $"Height*{yFraction.ToString("0.######", CultureInfo.InvariantCulture)}";
+            }
+            finally
+            {
+                ReleaseCom(ref y);
+                ReleaseCom(ref x);
+            }
+        });
 
     public void CloseDocument(string action)
     {
-        ThrowIfDisposed();
         ValidateDirtyAction(action);
-        _dispatcher.InvokeAsync(() => CloseDocumentCore(action)).GetAwaiter().GetResult();
+        InvokeSession(() => CloseDocumentCore(action));
     }
 
     public void Shutdown(bool confirm, string dirtyAction)
@@ -252,24 +331,48 @@ public sealed class VisioSession : IVisioSession
         }
         ValidateDirtyAction(dirtyAction);
 
-        _dispatcher.InvokeAsync(() =>
+        if (_state == SessionState.Invalidated)
         {
-            if (_document is not null)
+            if (dirtyAction != "cancel")
             {
-                var cancelled = CloseDocumentCore(dirtyAction);
-                if (cancelled) return;
+                _dispatcher.InvokeAsync(
+                    () => ShutdownInvalidatedSession(dirtyAction))
+                    .GetAwaiter()
+                    .GetResult();
             }
+            return;
+        }
 
-            if (_application is not null)
+        try
+        {
+            InvokeSession(() =>
             {
-                _masterCatalog?.Dispose();
-                _masterCatalog = null;
-                _application.Quit();
-                ReleaseCom(ref _application);
-            }
-            OwnedProcessId = null;
-            _state = SessionState.Stopped;
-        }).GetAwaiter().GetResult();
+                if (_document is not null)
+                {
+                    var cancelled = CloseDocumentCore(dirtyAction);
+                    if (cancelled) return;
+                }
+
+                if (_application is not null)
+                {
+                    _masterCatalog?.Dispose();
+                    _masterCatalog = null;
+                    _application.Quit();
+                    ReleaseCom(ref _application);
+                }
+                OwnedProcessId = null;
+                _state = SessionState.Stopped;
+            });
+        }
+        catch (BridgeCommandException error) when (
+            error.Code == BridgeErrorCodes.SessionInvalidated
+            && dirtyAction != "cancel")
+        {
+            _dispatcher.InvokeAsync(
+                () => ShutdownInvalidatedSession(dirtyAction))
+                .GetAwaiter()
+                .GetResult();
+        }
     }
 
     public void Dispose()
@@ -361,6 +464,55 @@ public sealed class VisioSession : IVisioSession
         }
     }
 
+    private void CloseValidatedDocumentForCommit()
+    {
+        if (_document is null || _page is null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SessionNotReady,
+                "Visio 会话没有可提交的文档。");
+        }
+        if (!_document.Saved)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SaveFailed,
+                "暂存文档尚未完成保存，不能提交。");
+        }
+
+        _document.Close();
+        ReleaseCom(ref _page);
+        ReleaseCom(ref _document);
+        _state = SessionState.Starting;
+    }
+
+    private void ReopenDocumentAfterCommit(string absoluteVsdxPath)
+    {
+        try
+        {
+            var pageId = _boundPageId ?? throw new BridgeCommandException(
+                BridgeErrorCodes.SessionInvalidated,
+                "安全保存前没有可恢复的绑定页 ID。");
+            var dpi = _canvas?.Dpi ?? throw new BridgeCommandException(
+                BridgeErrorCodes.SessionInvalidated,
+                "安全保存前没有可恢复的画布 DPI。");
+            _document = OpenDocument(absoluteVsdxPath);
+            _page = SelectPageById(_document, pageId);
+            _canvas = ReadCanvas(_page, dpi);
+            ActivateBoundPage();
+            _state = SessionState.Ready;
+        }
+        catch
+        {
+            ReleaseCom(ref _page);
+            ReleaseCom(ref _document);
+            _boundPageId = null;
+            _boundPageNameU = null;
+            _canvas = null;
+            _state = SessionState.Invalidated;
+            throw;
+        }
+    }
+
     private static Visio.Page GetFirstPage(Visio.Document document)
     {
         var pages = document.Pages;
@@ -374,15 +526,101 @@ public sealed class VisioSession : IVisioSession
         }
     }
 
+    private Visio.Page SelectPage(Visio.Document document, string? pageName)
+    {
+        if (string.IsNullOrWhiteSpace(pageName))
+        {
+            var activePage = _application!.ActivePage;
+            return activePage ?? GetFirstPage(document);
+        }
+
+        var pages = document.Pages;
+        try
+        {
+            for (var index = 1; index <= pages.Count; index++)
+            {
+                Visio.Page? page = pages[index];
+                if (string.Equals(page.Name, pageName, StringComparison.Ordinal)
+                    || string.Equals(page.NameU, pageName, StringComparison.Ordinal))
+                {
+                    return page;
+                }
+                ReleaseCom(ref page);
+            }
+        }
+        finally
+        {
+            ReleaseCom(ref pages);
+        }
+
+        throw new BridgeCommandException(
+            BridgeErrorCodes.PageNotFound,
+            $"文档中不存在页面: {pageName}");
+    }
+
+    private Visio.Page SelectPageById(Visio.Document document, int pageId)
+    {
+        var pages = document.Pages;
+        try
+        {
+            for (var index = 1; index <= pages.Count; index++)
+            {
+                Visio.Page? page = pages[index];
+                if (page.ID == pageId) return page;
+                ReleaseCom(ref page);
+            }
+        }
+        finally
+        {
+            ReleaseCom(ref pages);
+        }
+
+        throw new BridgeCommandException(
+            BridgeErrorCodes.PageNotFound,
+            $"安全保存后找不到原绑定页 ID={pageId}，NameU={_boundPageNameU}。");
+    }
+
+    private static CanvasSpec ReadCanvas(Visio.Page page, int dpi)
+    {
+        var pageSheet = page.PageSheet;
+        Visio.Cell? widthCell = null;
+        Visio.Cell? heightCell = null;
+        try
+        {
+            widthCell = pageSheet.CellsU["PageWidth"];
+            heightCell = pageSheet.CellsU["PageHeight"];
+            var widthPx = checked((int)Math.Round(
+                widthCell.ResultIU * dpi,
+                MidpointRounding.AwayFromZero));
+            var heightPx = checked((int)Math.Round(
+                heightCell.ResultIU * dpi,
+                MidpointRounding.AwayFromZero));
+            if (widthPx is < 100 or > 30000
+                || heightPx is < 100 or > 30000)
+            {
+                throw new BridgeCommandException(
+                    BridgeErrorCodes.InvalidCoordinates,
+                    "所选页面在当前 DPI 下超出 100–30000 像素范围；请调整 dpi。");
+            }
+            return new CanvasSpec(widthPx, heightPx, dpi);
+        }
+        finally
+        {
+            ReleaseCom(ref heightCell);
+            ReleaseCom(ref widthCell);
+            ReleaseCom(ref pageSheet);
+        }
+    }
+
     private LaunchResult CompleteLaunch(
-        int widthPx,
-        int heightPx,
-        int dpi,
+        CanvasSpec canvas,
         bool maximize)
     {
         _boundPageId = _page!.ID;
-        _canvas = new CanvasSpec(widthPx, heightPx, dpi);
+        _boundPageNameU = _page.NameU;
+        _canvas = canvas;
         _application!.Visible = true;
+        ActivateBoundPage();
         if (maximize)
         {
             var window = _application.ActiveWindow;
@@ -489,6 +727,7 @@ public sealed class VisioSession : IVisioSession
         ReleaseCom(ref _page);
         ReleaseCom(ref _document);
         _boundPageId = null;
+        _boundPageNameU = null;
         _canvas = null;
         _state = SessionState.Stopped;
         return false;
@@ -566,11 +805,13 @@ public sealed class VisioSession : IVisioSession
         }
         var accessor = new VisioShapeAccessor(() => _page!);
         var repository = new ShapeRepository(accessor);
+        var geometry = new GeometryConverter(_canvas);
         return new ShapeFactory(
             _page,
-            new GeometryConverter(_canvas),
+            geometry,
             repository,
-            GetMasterCatalog());
+            GetMasterCatalog(),
+            new PageInspector(_document!, _page, geometry));
     }
 
     private ConnectorService CreateConnectorService()
@@ -582,9 +823,10 @@ public sealed class VisioSession : IVisioSession
                 "Visio 会话尚未准备好。");
         }
         var accessor = new VisioShapeAccessor(() => _page!);
+        var geometry = new GeometryConverter(_canvas!);
         return new ConnectorService(
             new ShapeRepository(accessor),
-            new VisioConnectorAdapter(_page, _application!));
+            new VisioConnectorAdapter(_page, _application!, geometry));
     }
 
     private PageInspector CreateInspector()
@@ -632,18 +874,23 @@ public sealed class VisioSession : IVisioSession
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)
     {
-        ThrowIfDisposed();
-        return _dispatcher.InvokeAsync(() =>
+        return InvokeReady(() =>
         {
             using var scope = new UndoScope(RequireReadyApplication(), name);
             var result = operation();
             scope.Complete();
             return result;
-        }).GetAwaiter().GetResult();
+        });
     }
 
     private Visio.InvisibleApp RequireReadyApplication()
     {
+        if (_state == SessionState.Invalidated)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SessionInvalidated,
+                "Visio 会话已失效，必须重新启动会话。");
+        }
         if (_state != SessionState.Ready
             || _application is null
             || _document is null
@@ -657,16 +904,195 @@ public sealed class VisioSession : IVisioSession
         return _application;
     }
 
+    private T InvokeReady<T>(Func<T> operation) => InvokeSession(() =>
+    {
+        RequireReadyApplication();
+        ActivateBoundPage();
+        return operation();
+    });
+
+    private void InvokeReady(Action operation) => InvokeReady(() =>
+    {
+        operation();
+        return true;
+    });
+
+    private T InvokeSession<T>(Func<T> operation)
+    {
+        ThrowIfDisposed();
+        try
+        {
+            return _dispatcher.InvokeAsync(operation).GetAwaiter().GetResult();
+        }
+        catch (BridgeCommandException)
+        {
+            throw;
+        }
+        catch (COMException error)
+        {
+            var translated = ComExceptionTranslator.Translate(error);
+            if (translated.Code == BridgeErrorCodes.VisioBusy) throw translated;
+            _state = SessionState.Invalidated;
+            throw SessionInvalidated(error.Message, error.HResult);
+        }
+        catch (InvalidComObjectException error)
+        {
+            _state = SessionState.Invalidated;
+            throw SessionInvalidated(error.Message, null);
+        }
+    }
+
+    private void InvokeSession(Action operation) => InvokeSession(() =>
+    {
+        operation();
+        return true;
+    });
+
+    private void ActivateBoundPage()
+    {
+        if (_application is null || _page is null || _boundPageId is null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.SessionInvalidated,
+                "Visio 会话缺少绑定页。");
+        }
+
+        Visio.Window? window = null;
+        object? windowPage = null;
+        try
+        {
+            window = _application.ActiveWindow;
+            if (window is null)
+            {
+                _state = SessionState.Invalidated;
+                throw SessionInvalidated("Visio ActiveWindow 不存在。", null);
+            }
+            windowPage = window.Page;
+            var visiblePage = windowPage as Visio.Page;
+            var alreadyVisible = visiblePage is not null
+                && visiblePage.ID == _boundPageId.Value;
+            ReleaseComAlias(ref windowPage);
+            if (!alreadyVisible)
+            {
+                window.Page = _page;
+                window.Activate();
+                windowPage = window.Page;
+                visiblePage = windowPage as Visio.Page;
+            }
+            if (visiblePage is null || visiblePage.ID != _boundPageId.Value)
+            {
+                if (_state == SessionState.Ready) _state = SessionState.Invalidated;
+                throw new BridgeCommandException(
+                    _state == SessionState.Starting
+                        ? BridgeErrorCodes.PageNotFound
+                        : BridgeErrorCodes.SessionInvalidated,
+                    $"Visio 可见窗口没有激活绑定页 ID={_boundPageId.Value}。");
+            }
+        }
+        finally
+        {
+            ReleaseComAlias(ref windowPage);
+            ReleaseCom(ref window);
+        }
+    }
+
+    private void DisplayPage(Visio.Page page)
+    {
+        Visio.Window? window = null;
+        try
+        {
+            window = _application!.ActiveWindow;
+            window.Page = page;
+            window.Activate();
+        }
+        finally
+        {
+            ReleaseCom(ref window);
+        }
+    }
+
+    private static BridgeCommandException SessionInvalidated(
+        string reason,
+        int? hresult) => new(
+            BridgeErrorCodes.SessionInvalidated,
+            "Visio 会话已失效，必须重新启动会话。",
+            details: new { reason, hresult });
+
+    private void ShutdownInvalidatedSession(string dirtyAction)
+    {
+        _masterCatalog?.Dispose();
+        _masterCatalog = null;
+        if (dirtyAction == "save" && _document is null)
+        {
+            throw SessionInvalidated(
+                "失效会话没有可确认保存成功的文档。",
+                null);
+        }
+        try
+        {
+            if (_document is not null)
+            {
+                try
+                {
+                    CloseDocumentCore(dirtyAction);
+                }
+                catch (COMException) when (dirtyAction == "discard")
+                {
+                }
+                catch (InvalidComObjectException) when (dirtyAction == "discard")
+                {
+                }
+                catch (COMException error)
+                {
+                    _state = SessionState.Invalidated;
+                    throw SessionInvalidated(error.Message, error.HResult);
+                }
+                catch (InvalidComObjectException error)
+                {
+                    _state = SessionState.Invalidated;
+                    throw SessionInvalidated(error.Message, null);
+                }
+            }
+            _application?.Quit();
+        }
+        catch (COMException)
+        {
+        }
+        catch (InvalidComObjectException)
+        {
+        }
+        ReleaseCom(ref _page);
+        ReleaseCom(ref _document);
+        ReleaseCom(ref _application);
+        _boundPageId = null;
+        _boundPageNameU = null;
+        _canvas = null;
+        OwnedProcessId = null;
+        _state = SessionState.Stopped;
+    }
+
     private static void ValidateCanvas(string pageName, int widthPx, int heightPx, int dpi)
     {
         if (string.IsNullOrWhiteSpace(pageName)
-            || widthPx <= 0
-            || heightPx <= 0
-            || dpi <= 0)
+            || widthPx is < 100 or > 30000
+            || heightPx is < 100 or > 30000
+            || dpi is < 48 or > 600)
         {
             throw new BridgeCommandException(
                 BridgeErrorCodes.InvalidArgument,
                 "pageName、widthPx、heightPx 和 dpi 必须有效且为正数。");
+        }
+    }
+
+    private static void ValidateOpenOptions(string? pageName, int dpi)
+    {
+        if ((pageName is not null
+                && (string.IsNullOrWhiteSpace(pageName) || pageName.Length > 255))
+            || dpi is < 48 or > 600)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.InvalidArgument,
+                "page_name 必须为 1–255 个字符，dpi 必须在 48–600 范围内。");
         }
     }
 
@@ -700,6 +1126,16 @@ public sealed class VisioSession : IVisioSession
         if (value is not null && Marshal.IsComObject(value))
         {
             Marshal.FinalReleaseComObject(value);
+        }
+        value = null;
+    }
+
+    private static void ReleaseComAlias<T>(ref T? value)
+        where T : class
+    {
+        if (value is not null && Marshal.IsComObject(value))
+        {
+            Marshal.ReleaseComObject(value);
         }
         value = null;
     }

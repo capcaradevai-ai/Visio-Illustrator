@@ -37,7 +37,7 @@ Use the `visio_live_*` MCP tools for visible drawing. Use `visio_validate`, `vis
 
 - Use `visio_live_add_shape` for editable basic Shapes and bundled scientific Masters.
 - Use `visio_live_add_image` only for explicitly raster or externally rendered content.
-- Use `visio_live_add_connector` for arrows and relationships; require two verified glued endpoints.
+- Use `visio_live_add_connector` for arrows and relationships; require distinct source and target Shapes plus two verified glued endpoints. Choose `dynamic`, `right_angle`, or `straight` routing, or use `polyline` with explicit pixel waypoints. Use explicit connection-point row numbers only when the target Shape already has those `Connections.Xn` cells.
 - Use `visio_live_draw_sequence` for paced batches of individually visible operations. Stop at the first reported failure.
 - Use `visio_live_group_shapes`, `visio_live_ungroup_shape`, and `visio_live_add_to_container` only with stable semantic IDs on the current page.
 - Use `visio_live_clear` and `visio_live_shutdown` only with explicit confirmation.
@@ -49,7 +49,7 @@ Use the `visio_live_*` MCP tools for visible drawing. Use `visio_validate`, `vis
 - Recreate text as editable Shape text and arrows as glued 1D connectors.
 - Use universal ShapeSheet names and values through `CellsU`, `FormulaU`, and `NameU`; never rely on localized Cell or Master names.
 - Use consistent Master families, line weights, fonts, arrowheads, and semantic colors.
-- Route connectors around unrelated Shapes and inspect connection records after creation.
+- Route connectors around unrelated Shapes, use explicit polyline waypoints when the reference requires a fixed path, and inspect Begin/End connection records after creation.
 - Preserve `User.CodexId` across grouping, saving, reopening, and targeted edits.
 - For photographs, microscopy, heatmaps, molecular renders, or dense plots, use an explicit image Shape and disclose that its internal pixels are not editable Visio geometry.
 - If the reference is ambiguous or unreadable, state the uncertain parts instead of inventing content.

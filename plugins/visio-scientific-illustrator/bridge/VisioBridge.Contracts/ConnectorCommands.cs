@@ -7,7 +7,11 @@ public sealed record AddConnectorCommand(
     string Source,
     string Target,
     ConnectorStyle? Style = null,
-    IReadOnlyList<PixelPoint>? Waypoints = null);
+    IReadOnlyList<PixelPoint>? Waypoints = null,
+    string? Label = null,
+    string? Routing = null,
+    [property: JsonPropertyName("source_connection_point")] int? SourceConnectionPoint = null,
+    [property: JsonPropertyName("target_connection_point")] int? TargetConnectionPoint = null);
 
 public sealed record ConnectorStyle(
     [property: JsonPropertyName("stroke_color")] string? StrokeColor = null,

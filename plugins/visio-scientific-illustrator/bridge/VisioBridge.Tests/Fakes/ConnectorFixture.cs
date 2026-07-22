@@ -1,6 +1,7 @@
 using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Shapes;
+using System.Runtime.InteropServices;
 
 namespace VisioBridge.Tests.Fakes;
 
@@ -51,16 +52,44 @@ internal sealed class FakeConnectorAdapter : IConnectorAdapter
 
     public bool GlueCalled { get; private set; }
 
-    public IShapeHandle Create(IShapeHandle source, IShapeHandle target)
+    public string? Routing { get; private set; }
+
+    public IReadOnlyList<PixelPoint>? Waypoints { get; private set; }
+
+    public string? Label { get; private set; }
+
+    public int? SourceConnectionPoint { get; private set; }
+
+    public int? TargetConnectionPoint { get; private set; }
+
+    public COMException? CreateError { get; set; }
+
+    public IShapeHandle Create(
+        IShapeHandle source,
+        IShapeHandle target,
+        string routing,
+        IReadOnlyList<PixelPoint>? waypoints)
     {
+        if (CreateError is not null) throw CreateError;
+        Routing = routing;
+        Waypoints = waypoints;
         _connector = new FakeShape(100, null);
         return _connector;
     }
 
-    public void Glue(IShapeHandle connector, IShapeHandle source, IShapeHandle target)
+    public void Glue(
+        IShapeHandle connector,
+        IShapeHandle source,
+        IShapeHandle target,
+        int? sourceConnectionPoint,
+        int? targetConnectionPoint)
     {
         GlueCalled = true;
+        SourceConnectionPoint = sourceConnectionPoint;
+        TargetConnectionPoint = targetConnectionPoint;
     }
+
+    public void SetLabel(IShapeHandle connector, string? label) => Label = label;
 
     public void ApplyStyle(IShapeHandle connector, ConnectorStyle? style)
     {

@@ -70,12 +70,54 @@ const shapeProperties = {
   style: shapeStyle,
 };
 
-const connectorProperties = {
+const waypoint = {
+  type: "object",
+  required: ["x", "y"],
+  properties: {
+    x: { type: "number", minimum: 0 },
+    y: { type: "number", minimum: 0 },
+  },
+  additionalProperties: false,
+};
+
+const connectorBaseProperties = {
   semantic_id: semanticId,
   source: semanticId,
   target: semanticId,
+  label: { type: "string", maxLength: 10000 },
+  source_connection_point: { type: "integer", minimum: 1, maximum: 32767 },
+  target_connection_point: { type: "integer", minimum: 1, maximum: 32767 },
   style: connectorStyle,
 };
+
+function connectorSchema(extraProperties = {}, extraRequired = []) {
+  const required = [...extraRequired, "semantic_id", "source", "target"];
+  return {
+    oneOf: [
+      {
+        type: "object",
+        required: [...required, "routing", "waypoints"],
+        properties: {
+          ...extraProperties,
+          ...connectorBaseProperties,
+          routing: { const: "polyline" },
+          waypoints: { type: "array", minItems: 1, maxItems: 64, items: waypoint },
+        },
+        additionalProperties: false,
+      },
+      {
+        type: "object",
+        required,
+        properties: {
+          ...extraProperties,
+          ...connectorBaseProperties,
+          routing: { type: "string", enum: ["dynamic", "right_angle", "straight"] },
+        },
+        additionalProperties: false,
+      },
+    ],
+  };
+}
 
 const updateProperties = {
   semantic_id: semanticId,
@@ -110,12 +152,7 @@ const sequenceOperations = {
         },
         additionalProperties: false,
       },
-      {
-        type: "object",
-        required: ["type", "semantic_id", "source", "target"],
-        properties: { type: { const: "connector" }, ...connectorProperties },
-        additionalProperties: false,
-      },
+      connectorSchema({ type: { const: "connector" } }, ["type"]),
       {
         type: "object",
         required: ["type", "semantic_id"],
@@ -154,31 +191,51 @@ const sequenceOperations = {
   },
 };
 
+const launchCommonProperties = {
+  page_name: { type: "string", minLength: 1, maxLength: 255 },
+  step_delay_ms: { type: "integer", minimum: 100, maximum: 10000, default: 500 },
+  maximize: { type: "boolean", default: true },
+  include_preview: { type: "boolean", default: true },
+};
+
 export const launchSchema = {
-  type: "object",
-  required: ["mode"],
-  properties: {
-    mode: { type: "string", enum: ["new", "open"] },
-    file_path: absolutePath("vsdx", "Existing editable Visio document."),
-    page_name: { type: "string", minLength: 1, maxLength: 255, default: "Figure" },
-    canvas: {
+  oneOf: [
+    {
       type: "object",
+      required: ["mode"],
       properties: {
-        width_px: { type: "integer", minimum: 100, maximum: 30000, default: 1600 },
-        height_px: { type: "integer", minimum: 100, maximum: 30000, default: 1000 },
-        dpi: { type: "integer", minimum: 48, maximum: 600, default: 96 },
+        mode: { const: "new" },
+        ...launchCommonProperties,
+        canvas: {
+          type: "object",
+          properties: {
+            width_px: { type: "integer", minimum: 100, maximum: 30000, default: 1600 },
+            height_px: { type: "integer", minimum: 100, maximum: 30000, default: 1000 },
+            dpi: { type: "integer", minimum: 48, maximum: 600, default: 96 },
+          },
+          additionalProperties: false,
+        },
       },
       additionalProperties: false,
     },
-    step_delay_ms: { type: "integer", minimum: 100, maximum: 10000, default: 500 },
-    maximize: { type: "boolean", default: true },
-    include_preview: { type: "boolean", default: true },
-  },
-  additionalProperties: false,
-  allOf: [{
-    if: { properties: { mode: { const: "open" } }, required: ["mode"] },
-    then: { required: ["file_path"] },
-  }],
+    {
+      type: "object",
+      required: ["mode", "file_path"],
+      properties: {
+        mode: { const: "open" },
+        file_path: absolutePath("vsdx", "Existing editable Visio document."),
+        ...launchCommonProperties,
+        canvas: {
+          type: "object",
+          properties: {
+            dpi: { type: "integer", minimum: 48, maximum: 600, default: 96 },
+          },
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+  ],
 };
 
 export const liveTools = [
@@ -229,12 +286,7 @@ export const liveTools = [
   {
     name: "visio_live_add_connector",
     description: "Add a 1D Visio connector glued to two semantic shapes.",
-    inputSchema: {
-      type: "object",
-      required: ["semantic_id", "source", "target"],
-      properties: connectorProperties,
-      additionalProperties: false,
-    },
+    inputSchema: connectorSchema(),
   },
   {
     name: "visio_live_update_shape",
@@ -412,17 +464,45 @@ export const fileTools = [
     name: "visio_export",
     description: "Export a VSDX to PNG, SVG, or PDF without changing the source.",
     inputSchema: {
-      type: "object",
-      required: ["input_path", "format", "output_path", "page_scope"],
-      properties: {
-        input_path: absolutePath("vsdx", "Source VSDX."),
-        format: { type: "string", enum: ["png", "svg", "pdf"] },
-        output_path: { type: "string", minLength: 3, description: "Absolute output path matching format." },
-        page_scope: { type: "string", enum: ["current", "all"] },
-        overwrite: { type: "boolean", default: false },
-        width: { type: "integer", minimum: 128, maximum: 10000, default: 2000 },
-      },
-      additionalProperties: false,
+      oneOf: [
+        {
+          type: "object",
+          required: ["input_path", "format", "output_path", "page_scope"],
+          properties: {
+            input_path: absolutePath("vsdx", "Source VSDX."),
+            format: { const: "png" },
+            output_path: { type: "string", minLength: 3, description: "Absolute PNG output path." },
+            page_scope: { const: "current" },
+            overwrite: { type: "boolean", default: false },
+            width: { type: "integer", minimum: 128, maximum: 10000, default: 2000 },
+          },
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          required: ["input_path", "format", "output_path", "page_scope"],
+          properties: {
+            input_path: absolutePath("vsdx", "Source VSDX."),
+            format: { const: "svg" },
+            output_path: { type: "string", minLength: 3, description: "Absolute SVG output path." },
+            page_scope: { const: "current" },
+            overwrite: { type: "boolean", default: false },
+          },
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          required: ["input_path", "format", "output_path", "page_scope"],
+          properties: {
+            input_path: absolutePath("vsdx", "Source VSDX."),
+            format: { const: "pdf" },
+            output_path: { type: "string", minLength: 3, description: "Absolute PDF output path." },
+            page_scope: { type: "string", enum: ["current", "all"] },
+            overwrite: { type: "boolean", default: false },
+          },
+          additionalProperties: false,
+        },
+      ],
     },
   },
 ];

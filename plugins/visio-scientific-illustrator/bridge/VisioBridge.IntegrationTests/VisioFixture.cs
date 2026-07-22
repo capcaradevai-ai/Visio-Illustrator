@@ -21,6 +21,8 @@ public sealed class VisioFixture : IDisposable
     public int OwnedProcessId => _session.OwnedProcessId
         ?? throw new InvalidOperationException("Fixture 没有 owned Visio PID。");
 
+    public SessionState State => _session.State;
+
     public ShapeMutationResult AddShape(AddShapeCommand command) => _session.AddShape(command);
 
     public ConnectorMutationResult AddConnector(AddConnectorCommand command) =>
@@ -37,8 +39,39 @@ public sealed class VisioFixture : IDisposable
 
     public void Undo() => _session.UndoLastForIntegrationTest();
 
+    public int AddPage(
+        string pageName,
+        int widthPx,
+        int heightPx,
+        int dpi,
+        bool activate) => _session.AddPageForIntegrationTest(
+            pageName,
+            widthPx,
+            heightPx,
+            dpi,
+            activate);
+
+    public (string BoundPage, string ActivePage) ReadPageBinding() =>
+        _session.ReadPageBindingForIntegrationTest();
+
+    public object Fit(string mode) => _session.Fit(mode);
+
+    public void QuitApplicationExternally() =>
+        _session.QuitApplicationExternallyForIntegrationTest();
+
+    public void AddConnectionPoint(
+        string semanticId,
+        double xFraction,
+        double yFraction) => _session.AddConnectionPointForIntegrationTest(
+            semanticId,
+            xFraction,
+            yFraction);
+
     public RasterSettings ReadRasterSettings() =>
         _session.ReadRasterSettingsForIntegrationTest();
+
+    public (string FullName, bool Saved) ReadDocumentSaveState() =>
+        _session.ReadDocumentSaveStateForIntegrationTest();
 
     public PreviewResult ExportPreview(int widthPx) =>
         _session.ExportPreview(widthPx);

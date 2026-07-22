@@ -117,6 +117,15 @@ export function mapToolError(error, tool) {
       tool,
     };
   }
+  if (error?.code === "BRIDGE_TIMEOUT" || error?.code === "BRIDGE_EXITED") {
+    return {
+      error: error.code,
+      message: error.message,
+      retryable: error.retryable ?? false,
+      details: error.details,
+      tool,
+    };
+  }
   const bridge = error?.bridgeError;
   if (bridge && bridgeErrorCodes.has(bridge.code)) {
     return {
@@ -135,6 +144,16 @@ export function mapToolError(error, tool) {
       ? { ...(bridge.details || {}), bridge_code: bridge.code }
       : undefined,
     tool,
+  };
+}
+
+export function mapSequenceError(error) {
+  const mapped = mapToolError(error, "visio_live_draw_sequence");
+  return {
+    code: mapped.error,
+    message: mapped.message,
+    retryable: mapped.retryable,
+    details: mapped.details,
   };
 }
 

@@ -33,6 +33,108 @@ public sealed class SessionIntegrationTests
         Assert.True(WaitForOwnedProcessExit(ownedProcessId, TimeSpan.FromSeconds(35)));
     }
 
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
+    public void Open_activates_requested_page_and_reads_its_real_canvas()
+    {
+        var directory = CreateTestDirectory();
+        var path = Path.Combine(directory, "multipage.vsdx");
+        try
+        {
+            using (var creator = new VisioSession())
+            {
+                creator.LaunchNew("Overview", 800, 500, 100, false);
+                creator.AddPageForIntegrationTest(
+                    "Results",
+                    1200,
+                    600,
+                    100,
+                    activate: false);
+                creator.Save(new VisioBridge.Contracts.SaveCommand(path));
+                creator.Shutdown(true, "discard");
+            }
+
+            using var session = new VisioSession();
+            var result = session.Open(path, "Results", 100, false);
+            try
+            {
+                Assert.Equal("Results", result.PageName);
+                Assert.Equal(1200, result.Canvas.WidthPx);
+                Assert.Equal(600, result.Canvas.HeightPx);
+                Assert.Equal(
+                    ("Results", "Results"),
+                    session.ReadPageBindingForIntegrationTest());
+            }
+            finally
+            {
+                session.Shutdown(true, "discard");
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
+    public void Operations_and_safe_save_keep_the_original_bound_page_visible()
+    {
+        var directory = CreateTestDirectory();
+        var path = Path.Combine(directory, "bound-page.vsdx");
+        try
+        {
+            using var fixture = VisioFixture.StartVisible();
+            fixture.AddShape(new VisioBridge.Contracts.AddShapeCommand(
+                "bound-shape",
+                "rectangle",
+                new VisioBridge.Contracts.PixelBox(100, 100, 200, 120),
+                "Bound"));
+            fixture.AddPage("Other", 1600, 1000, 96, activate: true);
+            Assert.Equal(("Figure", "Other"), fixture.ReadPageBinding());
+
+            fixture.Fit("page");
+            Assert.Equal(("Figure", "Figure"), fixture.ReadPageBinding());
+
+            fixture.AddPage("OtherBeforeSave", 1600, 1000, 96, activate: true);
+            fixture.Save(path);
+
+            Assert.Equal(("Figure", "Figure"), fixture.ReadPageBinding());
+            Assert.Contains(
+                fixture.Inspect().Shapes,
+                shape => shape.SemanticId == "bound-shape");
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
+    public void External_Visio_exit_transitions_the_session_to_invalidated()
+    {
+        using var fixture = VisioFixture.StartVisible();
+        fixture.QuitApplicationExternally();
+
+        var error = Assert.Throws<VisioBridge.Core.BridgeCommandException>(
+            () => fixture.Inspect());
+
+        Assert.Equal(VisioBridge.Core.BridgeErrorCodes.SessionInvalidated, error.Code);
+        Assert.Equal(SessionState.Invalidated, fixture.State);
+        Assert.Equal(SessionState.Invalidated, fixture.GetStatus().State);
+    }
+
+    private static string CreateTestDirectory()
+    {
+        var directory = Path.Combine(
+            Path.GetTempPath(),
+            "visio-session-integration",
+            Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        return directory;
+    }
+
     private static bool WaitForOwnedProcessExit(int processId, TimeSpan timeout)
     {
         try

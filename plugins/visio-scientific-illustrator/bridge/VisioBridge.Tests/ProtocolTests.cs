@@ -26,6 +26,24 @@ public sealed class ProtocolTests
     }
 
     [Fact]
+    public void Command_dto_rejects_unknown_fields_at_the_bridge_boundary()
+    {
+        const string json = """
+            {
+              "page_name":"Figure",
+              "width_px":1600,
+              "height_px":1000,
+              "dpi":96,
+              "maximize":true,
+              "extra":true
+            }
+            """;
+
+        Assert.Throws<JsonException>(() =>
+            JsonSerializer.Deserialize<LaunchNewCommand>(json, ProtocolJson.Options));
+    }
+
+    [Fact]
     public void Session_state_serializes_as_a_camel_case_name()
     {
         var json = JsonSerializer.Serialize(

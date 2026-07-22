@@ -23,6 +23,11 @@
   <ItemGroup>
     <ProjectReference Include="..\VisioBridge.Core\VisioBridge.Core.csproj" />
     <ProjectReference Include="..\VisioBridge.Contracts\VisioBridge.Contracts.csproj" />
+    <Reference Include="Microsoft.Office.Interop.Visio">
+      <HintPath>..\interop\Microsoft.Office.Interop.Visio.dll</HintPath>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+      <Private>true</Private>
+    </Reference>
   </ItemGroup>
 
 </Project>

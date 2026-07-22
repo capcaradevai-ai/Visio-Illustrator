@@ -89,6 +89,16 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 5. 用 `visio_live_save` 安全保存 VSDX，再用文件工具校验和导出。
 6. 使用带明确 `dirty_action` 的关闭或关机工具结束插件会话。
 
+打开已有 VSDX 时可以提供 `page_name` 和 `canvas.dpi`。插件会绑定并显示指定页，画布像素尺寸由该页真实的 `PageWidth`、`PageHeight` 和请求 DPI 计算；后续操作不会因为用户切换页面而悄悄改绑到别页。
+
+连接线支持以下 Visio 原生参数：
+
+- `routing: "dynamic" | "right_angle" | "straight"`：使用 Visio 可路由一维连接线。
+- `routing: "polyline"`：必须同时提供 1–64 个顶部左原点像素坐标 `waypoints`；折线路径仍是一个可编辑的一维 Visio Shape。
+- `label`：设置连接线可编辑文字。
+- `source_connection_point`、`target_connection_point`：按一基序号粘附到已有 `Connections.Xn`；不存在时返回 `CELL_NOT_FOUND`。
+- `source` 与 `target` 必须是不同的语义 Shape；端点创建后会验证 `BeginX` 和 `EndX` 两条连接记录。
+
 ## Tool reference
 
 实时工具：
@@ -135,7 +145,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 ## Save and export safety
 
 - 新建文档只有在可见页面已经绘制内容后才应执行最终保存。
-- 覆盖现有 VSDX 前会创建同目录备份；保存后通过独立隐藏 Visio 重新打开校验。失败时恢复旧文件，并在错误详情中报告 `restored`。
+- 保存时先把当前文档写入目标目录旁的受控 staging VSDX，并通过独立隐藏 Visio 重新打开校验；候选文件通过后，才用同卷原子替换把这份已验证字节提交到目标路径，同时保留旧文件备份。随后插件会在原有 Visio 实例中按原 Page ID 重新打开并激活目标页。候选校验失败时目标文件完全未触碰，提交失败时恢复旧文件，并在错误详情中报告 `restored`、`committed`、`phase` 和可继续抢救的 `recovery_path`。
 - PNG/SVG 导出使用 `Page.Export`，PDF 使用 `Document.ExportAsFixedFormat`。
 - 导出先写入临时文件并校验签名或尺寸，再原子替换目标；失败不会用空文件覆盖已有输出。
 - 预览导出完成后会恢复 Visio 原有的栅格导出设置，并清理插件拥有的临时预览文件。
@@ -153,7 +163,8 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 ## Known limitations
 
 - 当前版本仅发布 `win-x64` Bridge，并仅针对 Microsoft Visio 桌面版验收。
-- 连接线使用 Visio 动态路由和真实粘附端点；MCP 0.1.0 尚未提供显式折线路点参数。
+- 为保证目标文件与已验证候选完全一致，安全保存会关闭并重新打开当前文档，因此保存前的 Visio 撤销历史不会跨越这次保存保留。
+- 显式连接点只引用目标 Shape 已存在的 `Connections.Xn`，不会自动创建或猜测缺失连接点。
 - 照片、显微图、热图和复杂渲染可作为图片对象插入，但图片内部像素不是可编辑的 Visio 几何图元。
 - 科研专用 Master 集合是固定白名单；缺少 Master 时会明确报错，不自动替换。
 - 文件模式支持 VSDX 输入以及 PNG、SVG、PDF 输出，不支持旧版 VSD、JPG 或第三方格式转换。

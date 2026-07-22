@@ -1,6 +1,6 @@
 # Visio Scientific Illustrator Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 将 draw.io 科研绘图 Codex 插件迁移为通过 C# COM Bridge 在可见 Microsoft Visio 窗口中逐步创建、检查、修改、保存和导出可编辑科研插图的 Windows 插件。
 
@@ -92,7 +92,7 @@
 - Move: `plugins/drawio-scientific-illustrator/` → `plugins/visio-scientific-illustrator/`
 - Test: `scripts/validate-repo.mjs`
 
-- [ ] **Step 1: 初始化 Git 并导入上游 main**
+- [x] **Step 1: 初始化 Git 并导入上游 main**
 
 Run:
 
@@ -105,7 +105,7 @@ git checkout -b visio-migration upstream/main
 
 Expected: 当前分支为 `visio-migration`；上游源码出现，现有 `docs/superpowers/**` 保持为未跟踪文件且未被覆盖。
 
-- [ ] **Step 2: 提交已经确认的设计与计划文档**
+- [x] **Step 2: 提交已经确认的设计与计划文档**
 
 Run:
 
@@ -116,7 +116,7 @@ git commit -m "docs: add Visio migration design and plan"
 
 Expected: 一个只包含两份文档的提交。
 
-- [ ] **Step 3: 重命名插件目录并更新 marketplace 名称**
+- [x] **Step 3: 重命名插件目录并更新 marketplace 名称**
 
 Run:
 
@@ -150,7 +150,7 @@ Modify `.agents/plugins/marketplace.json` to exactly use:
 }
 ```
 
-- [ ] **Step 4: 写出会失败的仓库结构校验**
+- [x] **Step 4: 写出会失败的仓库结构校验**
 
 Modify `scripts/validate-repo.mjs` assertions to require:
 
@@ -165,7 +165,7 @@ if (!mcp.mcpServers?.["visio-live"] || !mcp.mcpServers?.["visio-file-utils"]) {
 
 Change the validated script paths from `server.mjs` to `file-server.mjs`, and keep `live-server.mjs` in the required file list.
 
-- [ ] **Step 5: 运行校验并确认失败位置正确**
+- [x] **Step 5: 运行校验并确认失败位置正确**
 
 Run:
 
@@ -175,7 +175,7 @@ node scripts/validate-repo.mjs
 
 Expected: FAIL，错误为 `Unexpected plugin name` 或 `Required Visio MCP servers are missing`，因为 manifest 和 `.mcp.json` 尚未迁移。
 
-- [ ] **Step 6: 更新最小 manifest 与 MCP 名称使结构校验通过**
+- [x] **Step 6: 更新最小 manifest 与 MCP 名称使结构校验通过**
 
 Modify `plugins/visio-scientific-illustrator/.codex-plugin/plugin.json` core fields:
 
@@ -210,7 +210,7 @@ Modify `plugins/visio-scientific-illustrator/.mcp.json`:
 }
 ```
 
-- [ ] **Step 7: 更新 package 名称和检查入口**
+- [x] **Step 7: 更新 package 名称和检查入口**
 
 Modify `package.json`:
 
@@ -234,7 +234,7 @@ Modify `package.json`:
 }
 ```
 
-- [ ] **Step 8: 运行结构校验**
+- [x] **Step 8: 运行结构校验**
 
 Run:
 
@@ -244,7 +244,7 @@ node scripts/validate-repo.mjs
 
 Expected: PASS，输出 `Repository structure and portability checks passed.`
 
-- [ ] **Step 9: 提交骨架迁移**
+- [x] **Step 9: 提交骨架迁移**
 
 ```powershell
 git add .agents package.json plugins scripts/validate-repo.mjs
@@ -264,7 +264,7 @@ git commit -m "chore: establish Visio plugin skeleton"
 - Delete: `plugins/visio-scientific-illustrator/scripts/drawio-path.mjs`
 - Modify: `scripts/smoke-test.mjs`
 
-- [ ] **Step 1: 写串行队列失败测试**
+- [x] **Step 1: 写串行队列失败测试**
 
 Create `tests/node/mcp-common.test.mjs`:
 
@@ -293,7 +293,7 @@ test("validateObject 拒绝未知字段", () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run:
 
@@ -303,7 +303,7 @@ node --test tests/node/mcp-common.test.mjs
 
 Expected: FAIL，提示无法找到 `mcp-common.mjs` 或导出成员。
 
-- [ ] **Step 3: 实现公共 MCP 帧与串行队列**
+- [x] **Step 3: 实现公共 MCP 帧与串行队列**
 
 Create `plugins/visio-scientific-illustrator/scripts/mcp-common.mjs` with these exported interfaces:
 
@@ -340,7 +340,7 @@ export function toolResult(value, { imageData, isError = false } = {}) {
 }
 ```
 
-- [ ] **Step 4: 运行 Node 单元测试**
+- [x] **Step 4: 运行 Node 单元测试**
 
 Run:
 
@@ -350,7 +350,7 @@ node --test tests/node/mcp-common.test.mjs
 
 Expected: 2 tests PASS。
 
-- [ ] **Step 5: 建立工具 schema 唯一来源**
+- [x] **Step 5: 建立工具 schema 唯一来源**
 
 Create `tool-schemas.mjs` with an initial launch schema and explicit tool descriptor:
 
@@ -376,7 +376,7 @@ export const liveTools = [{
 }];
 ```
 
-- [ ] **Step 6: 将两个 MCP 入口改为公共处理器且不保留 draw.io 实现**
+- [x] **Step 6: 将两个 MCP 入口改为公共处理器且不保留 draw.io 实现**
 
 Replace the old Graph/XML code with thin MCP shells importing `mcp-common.mjs` and `tool-schemas.mjs`. Until Bridge exists, `tools/call` must return:
 
@@ -390,7 +390,7 @@ toolResult({
 
 Delete `drawio-path.mjs`; Visio availability is detected by the C# COM Bridge, not by executable path scanning.
 
-- [ ] **Step 7: 运行语法检查和 smoke test**
+- [x] **Step 7: 运行语法检查和 smoke test**
 
 Run:
 
@@ -401,7 +401,7 @@ node scripts/smoke-test.mjs
 
 Expected: 两个 MCP 都能 initialize 和 tools/list；不得出现 draw.io 工具名。
 
-- [ ] **Step 8: 提交 Node MCP 公共层**
+- [x] **Step 8: 提交 Node MCP 公共层**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/scripts tests/node scripts/smoke-test.mjs
@@ -426,7 +426,7 @@ git commit -m "refactor: add serialized Visio MCP foundation"
 - Create: `bridge/VisioBridge.Tests/VisioBridge.Tests.csproj`
 - Create: `bridge/VisioBridge.Tests/ProtocolTests.cs`
 
-- [ ] **Step 1: 创建解决方案和项目**
+- [x] **Step 1: 创建解决方案和项目**
 
 Run from `plugins/visio-scientific-illustrator/bridge`:
 
@@ -444,7 +444,7 @@ dotnet add VisioBridge.Tests/VisioBridge.Tests.csproj reference VisioBridge.Core
 
 Expected: Solution contains four projects and restores successfully.
 
-- [ ] **Step 2: 固定 Windows/x64/nullable 构建规则**
+- [x] **Step 2: 固定 Windows/x64/nullable 构建规则**
 
 Create `Directory.Build.props`:
 
@@ -460,7 +460,7 @@ Create `Directory.Build.props`:
 </Project>
 ```
 
-- [ ] **Step 3: 写协议序列化失败测试**
+- [x] **Step 3: 写协议序列化失败测试**
 
 Create `VisioBridge.Tests/ProtocolTests.cs`:
 
@@ -484,7 +484,7 @@ public sealed class ProtocolTests
 }
 ```
 
-- [ ] **Step 4: 运行测试确认失败**
+- [x] **Step 4: 运行测试确认失败**
 
 Run:
 
@@ -494,7 +494,7 @@ dotnet test VisioBridge.sln -c Release
 
 Expected: FAIL，`BridgeRequest` 或 `ProtocolJson` 不存在。
 
-- [ ] **Step 5: 实现协议 DTO**
+- [x] **Step 5: 实现协议 DTO**
 
 Create `VisioBridge.Contracts/Protocol.cs`:
 
@@ -576,7 +576,7 @@ public sealed class BridgeCommandException : Exception
 }
 ```
 
-- [ ] **Step 6: 实现最小 status Host**
+- [x] **Step 6: 实现最小 status Host**
 
 Create `VisioBridge.Host/Program.cs` with a line loop that writes one ready line, accepts only `status`, and writes structured errors for other commands:
 
@@ -618,7 +618,7 @@ while ((line = Console.ReadLine()) is not null)
 
 Also add `using System.Runtime.InteropServices;` and remove generated `Class1.cs` files.
 
-- [ ] **Step 7: 运行 Bridge 测试与手工协议探测**
+- [x] **Step 7: 运行 Bridge 测试与手工协议探测**
 
 Run:
 
@@ -629,7 +629,7 @@ dotnet test VisioBridge.sln -c Release
 
 Expected: tests PASS；stdout 第一行是 `type=ready`，第二行是 `id=1, ok=true, state=stopped`。
 
-- [ ] **Step 8: 提交 Bridge 协议骨架**
+- [x] **Step 8: 提交 Bridge 协议骨架**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/bridge
@@ -646,7 +646,7 @@ git commit -m "feat: add Visio bridge protocol host"
 - Modify: `plugins/visio-scientific-illustrator/scripts/live-server.mjs`
 - Modify: `plugins/visio-scientific-illustrator/scripts/file-server.mjs`
 
-- [ ] **Step 1: 写 fake bridge fixture**
+- [x] **Step 1: 写 fake bridge fixture**
 
 Create `tests/node/fake-bridge.mjs`:
 
@@ -662,7 +662,7 @@ lines.on("line", (line) => {
 });
 ```
 
-- [ ] **Step 2: 写握手、关联和超时失败测试**
+- [x] **Step 2: 写握手、关联和超时失败测试**
 
 Create `tests/node/bridge-client.test.mjs`:
 
@@ -691,7 +691,7 @@ test("BridgeClient rejects timed out calls", async () => {
 });
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [x] **Step 3: 运行测试确认失败**
 
 ```powershell
 node --test tests/node/bridge-client.test.mjs
@@ -699,7 +699,7 @@ node --test tests/node/bridge-client.test.mjs
 
 Expected: FAIL，`BridgeClient` 尚不存在。
 
-- [ ] **Step 4: 实现 BridgeClient**
+- [x] **Step 4: 实现 BridgeClient**
 
 `bridge-client.mjs` must:
 
@@ -813,7 +813,7 @@ export function resolveBridgeExecutable(pluginRoot) {
 
 Do not search PATH or choose another binary when the explicit/bundled path is missing.
 
-- [ ] **Step 5: 运行 Node tests**
+- [x] **Step 5: 运行 Node tests**
 
 ```powershell
 node --test tests/node/bridge-client.test.mjs
@@ -821,11 +821,11 @@ node --test tests/node/bridge-client.test.mjs
 
 Expected: 2 tests PASS，无残留 node 子进程。
 
-- [ ] **Step 6: 将 MCP status 调用接到 Bridge**
+- [x] **Step 6: 将 MCP status 调用接到 Bridge**
 
 `live-server.mjs` creates one lazily started client and routes `visio_live_status` to `client.call("status", {})`. `file-server.mjs` creates a file-mode client only when its first tool is called.
 
-- [ ] **Step 7: 运行 MCP smoke test**
+- [x] **Step 7: 运行 MCP smoke test**
 
 ```powershell
 npm run check
@@ -834,7 +834,7 @@ node scripts/smoke-test.mjs
 
 Expected: initialize/tools/list PASS；smoke test 不要求本机启动 Visio。
 
-- [ ] **Step 8: 提交 Bridge client**
+- [x] **Step 8: 提交 Bridge client**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/scripts tests/node
@@ -857,7 +857,7 @@ git commit -m "feat: connect MCP servers to Visio bridge"
 - Create: `bridge/VisioBridge.IntegrationTests/VisioBridge.IntegrationTests.csproj`
 - Create: `bridge/VisioBridge.IntegrationTests/VisioFixture.cs`
 
-- [ ] **Step 1: 创建 integration test project 并加入 Solution**
+- [x] **Step 1: 创建 integration test project 并加入 Solution**
 
 Run from `plugins/visio-scientific-illustrator/bridge`:
 
@@ -878,7 +878,7 @@ public sealed class VisioFixture : IDisposable
 }
 ```
 
-- [ ] **Step 2: 添加 Visio COMReference**
+- [x] **Step 2: 添加 Visio COMReference**
 
 Modify `VisioBridge.Core.csproj`:
 
@@ -901,7 +901,7 @@ Modify `VisioBridge.Core.csproj`:
 
 Expected: build machine must have Visio type library 4.10 registered; absence is a build error, not a fallback to late binding.
 
-- [ ] **Step 3: 写 STA 串行测试**
+- [x] **Step 3: 写 STA 串行测试**
 
 Create `StaCommandDispatcherTests.cs`:
 
@@ -927,7 +927,7 @@ public sealed class StaCommandDispatcherTests
 }
 ```
 
-- [ ] **Step 4: 运行测试确认失败**
+- [x] **Step 4: 运行测试确认失败**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter StaCommandDispatcherTests
@@ -935,7 +935,7 @@ dotnet test VisioBridge.sln -c Release --filter StaCommandDispatcherTests
 
 Expected: FAIL，类不存在。
 
-- [ ] **Step 5: 实现 STA dispatcher**
+- [x] **Step 5: 实现 STA dispatcher**
 
 `StaCommandDispatcher` must create one background thread, call `SetApartmentState(ApartmentState.STA)` before start, create a hidden Windows Forms `Control`, and run `Application.Run()` on that thread. `Control.BeginInvoke` provides FIFO dispatch while the Windows message loop remains active for Visio COM reentrancy.
 
@@ -997,7 +997,7 @@ public void Dispose()
 }
 ```
 
-- [ ] **Step 6: 运行 STA tests**
+- [x] **Step 6: 运行 STA tests**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter StaCommandDispatcherTests
@@ -1005,7 +1005,7 @@ dotnet test VisioBridge.sln -c Release --filter StaCommandDispatcherTests
 
 Expected: PASS。
 
-- [ ] **Step 7: 定义会话状态与接口**
+- [x] **Step 7: 定义会话状态与接口**
 
 Create:
 
@@ -1046,7 +1046,7 @@ public interface IVisioSession : IDisposable
 }
 ```
 
-- [ ] **Step 8: 实现 owned Visio session**
+- [x] **Step 8: 实现 owned Visio session**
 
 `VisioSession` requirements:
 
@@ -1063,7 +1063,7 @@ public interface IVisioSession : IDisposable
 - `Shutdown` first applies the explicit dirty action, then calls `Application.Quit` only for the owned instance; a cancelled close leaves Visio running.
 - Add `CreateForIntegrationTest()` as an internal factory exposed to the integration-test assembly; it creates the same owned session path and does not attach to an existing process.
 
-- [ ] **Step 9: 写仅 Windows/Visio 环境运行的 integration test**
+- [x] **Step 9: 写仅 Windows/Visio 环境运行的 integration test**
 
 Create integration test:
 
@@ -1081,7 +1081,7 @@ public void LaunchNew_creates_visible_owned_session()
 }
 ```
 
-- [ ] **Step 10: 运行单元测试和本机 integration test**
+- [x] **Step 10: 运行单元测试和本机 integration test**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter "Category!=VisioIntegration"
@@ -1090,7 +1090,7 @@ dotnet test VisioBridge.IntegrationTests/VisioBridge.IntegrationTests.csproj -c 
 
 Expected: 第一条 PASS；第二条打开可见 Visio，随后只关闭测试创建的进程并 PASS。
 
-- [ ] **Step 11: 将 launch/status/shutdown 接到 CommandRouter**
+- [x] **Step 11: 将 launch/status/shutdown 接到 CommandRouter**
 
 Commands:
 
@@ -1103,7 +1103,7 @@ shutdown
 
 Unknown commands must return `UNSUPPORTED_OPERATION`.
 
-- [ ] **Step 12: 提交会话闭环**
+- [x] **Step 12: 提交会话闭环**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/bridge
@@ -1120,7 +1120,7 @@ git commit -m "feat: launch plugin-owned Visio sessions"
 - Create: `bridge/VisioBridge.Tests/GeometryConverterTests.cs`
 - Modify: `bridge/VisioBridge.Core/Session/VisioSession.cs`
 
-- [ ] **Step 1: 写坐标正反转换失败测试**
+- [x] **Step 1: 写坐标正反转换失败测试**
 
 ```csharp
 [Theory]
@@ -1141,7 +1141,7 @@ public void TopLeftPixels_convert_to_Visio_pin(
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter GeometryConverterTests
@@ -1149,7 +1149,7 @@ dotnet test VisioBridge.sln -c Release --filter GeometryConverterTests
 
 Expected: FAIL，几何类型不存在。
 
-- [ ] **Step 3: 实现不可变几何 DTO 和 converter**
+- [x] **Step 3: 实现不可变几何 DTO 和 converter**
 
 Required types:
 
@@ -1168,7 +1168,7 @@ var pinY = (canvas.HeightPx - box.Y - box.Height / 2d) / canvas.Dpi;
 
 Reject non-finite numbers, non-positive dimensions, boxes outside a configurable canvas margin, and DPI outside 48–600.
 
-- [ ] **Step 4: 运行几何测试**
+- [x] **Step 4: 运行几何测试**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter GeometryConverterTests
@@ -1176,7 +1176,7 @@ dotnet test VisioBridge.sln -c Release --filter GeometryConverterTests
 
 Expected: PASS，包括边界、逆变换和非法数值测试。
 
-- [ ] **Step 5: 让 VisioSession 使用同一 CanvasSpec 设置页面**
+- [x] **Step 5: 让 VisioSession 使用同一 CanvasSpec 设置页面**
 
 Set:
 
@@ -1185,7 +1185,7 @@ page.PageSheet.CellsU["PageWidth"].FormulaU = $"{widthInches.ToString(CultureInf
 page.PageSheet.CellsU["PageHeight"].FormulaU = $"{heightInches.ToString(CultureInfo.InvariantCulture)} in";
 ```
 
-- [ ] **Step 6: 运行所有非集成测试并提交**
+- [x] **Step 6: 运行所有非集成测试并提交**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter "Category!=VisioIntegration"
@@ -1203,7 +1203,7 @@ git commit -m "feat: add Visio page geometry conversion"
 - Create: `bridge/VisioBridge.Tests/ShapeRepositoryTests.cs`
 - Create: `bridge/VisioBridge.Tests/Fakes/FakeShapeAccessor.cs`
 
-- [ ] **Step 1: 用假 Shape accessor 写查找和重复 ID 测试**
+- [x] **Step 1: 用假 Shape accessor 写查找和重复 ID 测试**
 
 ```csharp
 [Fact]
@@ -1228,7 +1228,7 @@ public void Register_writes_User_CodexId_and_NameU()
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter ShapeRepositoryTests
@@ -1236,7 +1236,7 @@ dotnet test VisioBridge.sln -c Release --filter ShapeRepositoryTests
 
 Expected: FAIL，repository 和 fake adapter 契约不存在。
 
-- [ ] **Step 3: 定义 Shape accessor 边界**
+- [x] **Step 3: 定义 Shape accessor 边界**
 
 ```csharp
 public interface IShapeAccessor
@@ -1275,7 +1275,7 @@ internal sealed class FakeShapeAccessor : IShapeAccessor
 }
 ```
 
-- [ ] **Step 4: 实现明确的规范化规则**
+- [x] **Step 4: 实现明确的规范化规则**
 
 `NameU` generation:
 
@@ -1285,11 +1285,11 @@ NameU = "Codex_" + 将非 ASCII 字母数字下划线替换为下划线后的值
 NameU 冲突时不追加随机后缀；返回 DUPLICATE_SEMANTIC_ID
 ```
 
-- [ ] **Step 5: 实现每次重新枚举的 Resolve**
+- [x] **Step 5: 实现每次重新枚举的 Resolve**
 
 No long-lived Shape RCW cache. `Resolve` enumerates the bound page, matches exact `User.CodexId`, returns zero/one/multiple as `SHAPE_NOT_FOUND`/success/`DUPLICATE_SEMANTIC_ID`.
 
-- [ ] **Step 6: 运行 tests 并提交**
+- [x] **Step 6: 运行 tests 并提交**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter ShapeRepositoryTests
@@ -1310,7 +1310,7 @@ git commit -m "feat: track Visio shapes by stable semantic id"
 - Modify: `bridge/VisioBridge.IntegrationTests/VisioFixture.cs`
 - Modify: `bridge/VisioBridge.Core/Commands/CommandRouter.cs`
 
-- [ ] **Step 1: 写颜色、单位和非法样式测试**
+- [x] **Step 1: 写颜色、单位和非法样式测试**
 
 ```csharp
 [Theory]
@@ -1331,7 +1331,7 @@ public void Invalid_colors_are_rejected(string input)
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter StyleMapperTests
@@ -1339,7 +1339,7 @@ dotnet test VisioBridge.sln -c Release --filter StyleMapperTests
 
 Expected: FAIL。
 
-- [ ] **Step 3: 定义 AddShape 参数 DTO**
+- [x] **Step 3: 定义 AddShape 参数 DTO**
 
 ```csharp
 public sealed record AddShapeCommand(
@@ -1360,7 +1360,7 @@ public sealed record ShapeStyle(
     bool? Dashed);
 ```
 
-- [ ] **Step 4: 实现 StyleMapper**
+- [x] **Step 4: 实现 StyleMapper**
 
 Map only these universal cells:
 
@@ -1371,7 +1371,7 @@ Char.Color, Char.Size, Angle, Para.HorzAlign, VerticalAlign
 
 Before each optional cell write, call `CellExistsU`. Missing required cell returns `CELL_NOT_FOUND`; do not skip silently.
 
-- [ ] **Step 5: 实现基础 ShapeFactory**
+- [x] **Step 5: 实现基础 ShapeFactory**
 
 Dispatch table:
 
@@ -1393,11 +1393,11 @@ After creation:
 4. Register semantic ID.
 5. Return Shape ID, NameU, normalized geometry and style summary.
 
-- [ ] **Step 6: 实现显式图片命令**
+- [x] **Step 6: 实现显式图片命令**
 
 `add_image` accepts absolute PNG/JPEG/SVG/EMF path, validates extension and existence, calls `Page.Import`, sets requested geometry, registers semantic ID, and returns `rasterized=true` for PNG/JPEG.
 
-- [ ] **Step 7: 写并运行 Visio shape integration test**
+- [x] **Step 7: 写并运行 Visio shape integration test**
 
 First extend `VisioFixture` with:
 
@@ -1429,7 +1429,7 @@ dotnet test VisioBridge.IntegrationTests/VisioBridge.IntegrationTests.csproj -c 
 
 Expected: 可见 Visio 中出现可选择矩形与文字，test PASS。
 
-- [ ] **Step 8: 提交 Shape 核心**
+- [x] **Step 8: 提交 Shape 核心**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/bridge
@@ -1449,7 +1449,7 @@ git commit -m "feat: draw styled editable Visio shapes"
 - Modify: `bridge/VisioBridge.IntegrationTests/VisioFixture.cs`
 - Modify: `bridge/VisioBridge.Core/Commands/CommandRouter.cs`
 
-- [ ] **Step 1: 写缺失端点和重复 ID 测试**
+- [x] **Step 1: 写缺失端点和重复 ID 测试**
 
 ```csharp
 [Fact]
@@ -1472,7 +1472,7 @@ internal sealed class ConnectorFixture
 }
 ```
 
-- [ ] **Step 2: 定义 connector DTO**
+- [x] **Step 2: 定义 connector DTO**
 
 ```csharp
 public sealed record AddConnectorCommand(
@@ -1483,7 +1483,7 @@ public sealed record AddConnectorCommand(
     IReadOnlyList<PixelPoint>? Waypoints = null);
 ```
 
-- [ ] **Step 3: 实现 connector 创建和胶合**
+- [x] **Step 3: 实现 connector 创建和胶合**
 
 Required sequence:
 
@@ -1496,7 +1496,7 @@ Required sequence:
 7. Enumerate `Page.Connects` and verify both endpoints.
 8. If verification fails, delete the newly created connector within the same undo scope and return `CONNECTOR_NOT_GLUED`.
 
-- [ ] **Step 4: 写移动节点仍保持连接的 integration test**
+- [x] **Step 4: 写移动节点仍保持连接的 integration test**
 
 Extend `VisioFixture` with:
 
@@ -1523,7 +1523,7 @@ public void Glued_connector_follows_moved_target()
 }
 ```
 
-- [ ] **Step 5: 运行 connector tests**
+- [x] **Step 5: 运行 connector tests**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter ConnectorServiceTests
@@ -1532,7 +1532,7 @@ dotnet test VisioBridge.IntegrationTests/VisioBridge.IntegrationTests.csproj -c 
 
 Expected: unit 和 integration tests PASS。
 
-- [ ] **Step 6: 提交连接线功能**
+- [x] **Step 6: 提交连接线功能**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/bridge
@@ -1553,7 +1553,7 @@ git commit -m "feat: add glued Visio connectors"
 - Create: `bridge/VisioBridge.IntegrationTests/EditingIntegrationTests.cs`
 - Modify: `bridge/VisioBridge.Core/Commands/CommandRouter.cs`
 
-- [ ] **Step 1: 写“只修改显式字段”测试**
+- [x] **Step 1: 写“只修改显式字段”测试**
 
 ```csharp
 [Fact]
@@ -1570,7 +1570,7 @@ public void Update_label_does_not_change_geometry_or_style()
 
 Create `FakePageFixture.cs` with `WithShape`, `Editor`, `Inspector`, geometry and style storage. It must update only fields present in `UpdateShapeCommand`; no COM calls are allowed in this fake.
 
-- [ ] **Step 2: 定义 inspection DTO**
+- [x] **Step 2: 定义 inspection DTO**
 
 ```csharp
 public sealed record ShapeSnapshot(
@@ -1586,11 +1586,11 @@ public sealed record ShapeSnapshot(
     IReadOnlyList<string> ConnectedTo);
 ```
 
-- [ ] **Step 3: 实现 PageInspector**
+- [x] **Step 3: 实现 PageInspector**
 
 Inspect top-level and grouped shapes recursively; return page-space bounds; cap results at requested `max_shapes`; return `truncated`; include page count, shape count, connector count and dirty state.
 
-- [ ] **Step 4: 实现 UpdateShapeCommand**
+- [x] **Step 4: 实现 UpdateShapeCommand**
 
 Define the command exactly:
 
@@ -1607,7 +1607,7 @@ public sealed record UpdateShapeCommand(
 
 Every nullable field means “leave unchanged.” Resolve by semantic ID immediately before update, clone only requested geometry fields, and use `StyleMapper` for requested style fields.
 
-- [ ] **Step 5: 实现显式 delete connector policy**
+- [x] **Step 5: 实现显式 delete connector policy**
 
 DTO:
 
@@ -1617,11 +1617,11 @@ public sealed record DeleteShapeCommand(string SemanticId, string ConnectorPolic
 
 Accept only `keep` or `delete`. Before deleting, inspect affected connectors; delete them only when policy is exactly `delete`.
 
-- [ ] **Step 6: 实现 clear 和 UndoScope**
+- [x] **Step 6: 实现 clear 和 UndoScope**
 
 `clear` requires `confirm=true`. `UndoScope` wraps `Application.BeginUndoScope(name)` and always balances with `EndUndoScope(scopeId, commit)` in `Dispose`/explicit completion.
 
-- [ ] **Step 7: 写用户手动移动后更新文字的 integration test**
+- [x] **Step 7: 写用户手动移动后更新文字的 integration test**
 
 Test sequence:
 
@@ -1631,7 +1631,7 @@ add shape -> direct COM move to new location -> inspect -> update label only -> 
 
 Expected: new location preserved, label changed, one undo step reverses label update.
 
-- [ ] **Step 8: 运行 tests**
+- [x] **Step 8: 运行 tests**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter "PageInspectorTests|EditingIntegrationTests"
@@ -1639,7 +1639,7 @@ dotnet test VisioBridge.sln -c Release --filter "PageInspectorTests|EditingInteg
 
 Expected: PASS。
 
-- [ ] **Step 9: 提交检查与编辑功能**
+- [x] **Step 9: 提交检查与编辑功能**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/bridge
@@ -1662,7 +1662,7 @@ git commit -m "feat: inspect and edit live Visio shapes"
 - Modify: `bridge/VisioBridge.Core/Commands/CommandRouter.cs`
 - Modify: `plugins/visio-scientific-illustrator/scripts/live-server.mjs`
 
-- [ ] **Step 1: 写 sequence 中途停止测试**
+- [x] **Step 1: 写 sequence 中途停止测试**
 
 ```csharp
 [Fact]
@@ -1693,7 +1693,7 @@ public interface IPreviewExportAdapter
 }
 ```
 
-- [ ] **Step 2: 实现 SequenceExecutor**
+- [x] **Step 2: 实现 SequenceExecutor**
 
 Accepted operation types:
 
@@ -1703,11 +1703,11 @@ shape, image, connector, update, delete, fit, wait
 
 Each non-wait operation invokes the same command handler used by single tools. Stop on first error; return results, applied count, failed index and error. Do not continue after failure.
 
-- [ ] **Step 3: 在 Node live-server 执行可见延时**
+- [x] **Step 3: 在 Node live-server 执行可见延时**
 
 Node receives sequence operations and sends one Bridge command per operation, awaiting each result, then waits `step_delay_ms`. This keeps the UI pacing outside COM and prevents long COM calls. Enforce 100–10000 ms and a maximum of 500 operations.
 
-- [ ] **Step 4: 写预览设置恢复测试接口**
+- [x] **Step 4: 写预览设置恢复测试接口**
 
 Define an adapter test that records settings before/after a forced export exception:
 
@@ -1721,7 +1721,7 @@ public void Preview_restores_raster_settings_when_export_fails()
 }
 ```
 
-- [ ] **Step 5: 实现 PreviewExporter**
+- [x] **Step 5: 实现 PreviewExporter**
 
 Required behavior:
 
@@ -1733,11 +1733,11 @@ Required behavior:
 6. Restore settings in `finally`.
 7. Return temp path, dimensions and byte count.
 
-- [ ] **Step 6: 实现 fit**
+- [x] **Step 6: 实现 fit**
 
 Accept `page` or `width`; set `Application.ActiveWindow.ViewFit` to `visFitPage` or `visFitWidth`. Reject non-drawing windows with `UNSUPPORTED_OPERATION`.
 
-- [ ] **Step 7: 写 preview integration test**
+- [x] **Step 7: 写 preview integration test**
 
 Extend `VisioFixture` with:
 
@@ -1761,11 +1761,11 @@ public void Preview_exports_decodable_2000_pixel_png_and_restores_settings()
 }
 ```
 
-- [ ] **Step 8: Node 将临时 PNG 返回为 MCP image 后清理**
+- [x] **Step 8: Node 将临时 PNG 返回为 MCP image 后清理**
 
 `live-server.mjs` reads the returned absolute temp path, verifies it belongs to the bridge session temp directory, encodes base64, then deletes only that file. It returns `image/png` content plus structured status.
 
-- [ ] **Step 9: 运行 tests 并提交**
+- [x] **Step 9: 运行 tests 并提交**
 
 ```powershell
 npm run test:node
@@ -1789,7 +1789,7 @@ git commit -m "feat: add paced drawing and Visio previews"
 - Create: `bridge/VisioBridge.IntegrationTests/SaveIntegrationTests.cs`
 - Modify: `bridge/VisioBridge.Core/Commands/CommandRouter.cs`
 
-- [ ] **Step 1: 写“覆盖失败保留旧文件”测试**
+- [x] **Step 1: 写“覆盖失败保留旧文件”测试**
 
 ```csharp
 [Fact]
@@ -1838,7 +1838,7 @@ public interface IDocumentValidator
 }
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter SafeFileWriterTests
@@ -1846,7 +1846,7 @@ dotnet test VisioBridge.sln -c Release --filter SafeFileWriterTests
 
 Expected: FAIL。
 
-- [ ] **Step 3: 实现输出路径策略**
+- [x] **Step 3: 实现输出路径策略**
 
 `SafeFileWriter` must:
 
@@ -1860,7 +1860,7 @@ Expected: FAIL。
 - delete backup only after validation passes;
 - restore backup after any failure and include `restored=true/false` in error details.
 
-- [ ] **Step 4: 实现 Visio save modes**
+- [x] **Step 4: 实现 Visio save modes**
 
 Rules:
 
@@ -1872,7 +1872,7 @@ different path -> Document.SaveAsEx(path, 0)
 
 Never set `Document.Saved=true` to suppress prompts except inside the explicit `discard` branch of close/shutdown.
 
-- [ ] **Step 5: 实现独立只读验证入口**
+- [x] **Step 5: 实现独立只读验证入口**
 
 File mode opens the saved file read-only/hidden, verifies:
 
@@ -1887,11 +1887,11 @@ page width and height > 0
 
 Close the validation document without saving.
 
-- [ ] **Step 6: 写真实 overwrite failure integration test**
+- [x] **Step 6: 写真实 overwrite failure integration test**
 
 Use an invalid destination or injected validator failure after Visio save; assert the original SHA-256 remains unchanged and a structured `VALIDATION_FAILED` is returned.
 
-- [ ] **Step 7: 运行保存 tests**
+- [x] **Step 7: 运行保存 tests**
 
 ```powershell
 dotnet test VisioBridge.sln -c Release --filter "SafeFileWriterTests|SaveIntegrationTests"
@@ -1899,7 +1899,7 @@ dotnet test VisioBridge.sln -c Release --filter "SafeFileWriterTests|SaveIntegra
 
 Expected: PASS；失败场景不丢失旧文件。
 
-- [ ] **Step 8: 提交安全保存**
+- [x] **Step 8: 提交安全保存**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/bridge
@@ -1920,7 +1920,7 @@ git commit -m "feat: save and validate Visio documents safely"
 - Modify: `bridge/VisioBridge.Core/BridgeErrorCodes.cs`
 - Modify: `plugins/visio-scientific-illustrator/scripts/tool-schemas.mjs`
 
-- [ ] **Step 1: 让 Host 解析显式 mode**
+- [x] **Step 1: 让 Host 解析显式 mode**
 
 Accepted CLI:
 
@@ -1931,7 +1931,7 @@ VisioBridge.exe --mode file
 
 Any missing/unknown mode exits non-zero and writes a JSON-free diagnostic to stderr.
 
-- [ ] **Step 2: 写导出路由测试**
+- [x] **Step 2: 写导出路由测试**
 
 ```csharp
 [Theory]
@@ -1944,7 +1944,7 @@ public void Export_format_uses_expected_Visio_API(string format, string expected
 }
 ```
 
-- [ ] **Step 3: 实现三种导出**
+- [x] **Step 3: 实现三种导出**
 
 First implement the tested routing helper:
 
@@ -1965,11 +1965,11 @@ public static string SelectApi(string format) => format switch
 - Validate output signature and size before replacing target.
 - Use same-directory temp output and atomic replace; never delete an existing target after failure.
 
-- [ ] **Step 4: 实现 file inspect output parity**
+- [x] **Step 4: 实现 file inspect output parity**
 
 Return the same `ShapeSnapshot` structure as live inspect, plus file path, Visio version, read-only flag, pages and validation warnings.
 
-- [ ] **Step 5: 定义 file MCP schemas**
+- [x] **Step 5: 定义 file MCP schemas**
 
 Tools:
 
@@ -1981,7 +1981,7 @@ visio_export(input_path, format, output_path, page_scope, overwrite=false, width
 
 All schemas set `additionalProperties=false`.
 
-- [ ] **Step 6: 写 file mode integration test**
+- [x] **Step 6: 写 file mode integration test**
 
 Sequence:
 
@@ -1991,14 +1991,14 @@ create fixture VSDX -> validate -> inspect -> export PNG -> export SVG -> export
 
 Expected: source VSDX hash is unchanged; outputs exist and are non-empty.
 
-- [ ] **Step 7: 运行 Node 与 C# tests**
+- [x] **Step 7: 运行 Node 与 C# tests**
 
 ```powershell
 npm run test:node
 dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.sln -c Release --filter "FileExportPolicyTests|FileModeIntegrationTests"
 ```
 
-- [ ] **Step 8: 提交 file mode**
+- [x] **Step 8: 提交 file mode**
 
 ```powershell
 git add plugins/visio-scientific-illustrator
@@ -2017,7 +2017,7 @@ git commit -m "feat: validate and export saved Visio files"
 - Create: `tests/node/tool-schemas.test.mjs`
 - Create: `tests/node/server-routing.test.mjs`
 
-- [ ] **Step 1: 写工具清单完整性测试**
+- [x] **Step 1: 写工具清单完整性测试**
 
 ```js
 test("live tool names are stable and draw.io-free", () => {
@@ -2042,7 +2042,7 @@ test("live tool names are stable and draw.io-free", () => {
 });
 ```
 
-- [ ] **Step 2: 为每个工具写完整 JSON Schema**
+- [x] **Step 2: 为每个工具写完整 JSON Schema**
 
 Schemas must encode:
 
@@ -2057,11 +2057,11 @@ Schemas must encode:
 - explicit `dirty_action=save|discard|cancel` for shutdown and `action=save|discard|cancel` for close document;
 - `additionalProperties=false` at every object level.
 
-- [ ] **Step 3: 在服务端实际执行参数校验**
+- [x] **Step 3: 在服务端实际执行参数校验**
 
 Do not rely on the MCP client honoring schemas. Add a validator that returns `INVALID_ARGUMENT` with field path. Tests must send unknown fields, missing required fields and wrong enum values directly over JSON-RPC.
 
-- [ ] **Step 4: 建立 Bridge 错误到 MCP 错误映射**
+- [x] **Step 4: 建立 Bridge 错误到 MCP 错误映射**
 
 使用 Task 3 已冻结的 `BridgeErrorCodes`，不得在 Node 层重新定义另一套名称。为每个稳定错误码写表驱动测试，逐项验证 Bridge 响应中的 `code`、`message`、`retryable`、`details` 被原样映射到 MCP `isError=true` 的结构化内容，并补充 `tool` 字段。若收到未知 Bridge 错误码，才映射为 `INTERNAL_ERROR`，同时把原始错误码放入 `details.bridge_code`，避免信息丢失。
 
@@ -2073,11 +2073,11 @@ code, message, retryable, details, tool
 
 `VISIO_BUSY` remains retryable; `SHAPE_NOT_FOUND`, `MASTER_NOT_FOUND` and `OUTPUT_EXISTS` are not retryable. Do not catch and convert every error to generic `INTERNAL_ERROR`.
 
-- [ ] **Step 5: 验证 mutating tools 走 SerialQueue**
+- [x] **Step 5: 验证 mutating tools 走 SerialQueue**
 
 Routing test fires two fake `add_shape` calls where the first delays; assert Bridge call order remains first then second. Status can share the queue to keep COM observation consistent.
 
-- [ ] **Step 6: 运行 Node tests**
+- [x] **Step 6: 运行 Node tests**
 
 ```powershell
 node --test tests/node/*.test.mjs
@@ -2085,7 +2085,7 @@ node --test tests/node/*.test.mjs
 
 Expected: all PASS；不存在 draw.io 工具名。
 
-- [ ] **Step 7: 提交完整 MCP API**
+- [x] **Step 7: 提交完整 MCP API**
 
 ```powershell
 git add plugins/visio-scientific-illustrator/scripts tests/node
@@ -2106,7 +2106,7 @@ git commit -m "feat: finalize Visio MCP tool contracts"
 - Modify: `plugins/visio-scientific-illustrator/scripts/live-server.mjs`
 - Modify: `tests/node/tool-schemas.test.mjs`
 
-- [ ] **Step 1: 定义固定通用 Master 清单**
+- [x] **Step 1: 定义固定通用 Master 清单**
 
 Create `MasterCatalog.cs` mapping only:
 
@@ -2125,15 +2125,15 @@ private static readonly IReadOnlyDictionary<string, string> Names =
     };
 ```
 
-- [ ] **Step 2: 创建 stencil 并验证 Master NameU**
+- [x] **Step 2: 创建 stencil 并验证 Master NameU**
 
 Create the `.vssx` manually in Visio developer mode or with a one-time repository build utility, then add an integration test that opens it hidden and asserts every expected `Masters.ItemU(name)` exists. Do not substitute localized built-in stencil names.
 
-- [ ] **Step 3: 实现 Master Drop**
+- [x] **Step 3: 实现 Master Drop**
 
 Open the bundled stencil hidden once per owned session, resolve by exact NameU, call `Page.Drop(master, pinX, pinY)`, then set Width/Height and semantic ID. Missing Master returns `MASTER_NOT_FOUND`.
 
-- [ ] **Step 4: 实现显式 group/container operations**
+- [x] **Step 4: 实现显式 group/container operations**
 
 Add commands:
 
@@ -2155,11 +2155,11 @@ visio_live_add_to_container
 
 Add complete schemas with `additionalProperties=false`, route them through `SerialQueue`, and extend the exact tool-name test after the Bridge commands pass.
 
-- [ ] **Step 5: 写 Master integration test**
+- [x] **Step 5: 写 Master integration test**
 
 Drop every Master, save/reopen VSDX, inspect semantic IDs and verify each Shape remains independently editable.
 
-- [ ] **Step 6: 运行测试并提交**
+- [x] **Step 6: 运行测试并提交**
 
 ```powershell
 dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.sln -c Release --filter "MasterCatalogTests|MasterIntegrationTests"
@@ -2179,7 +2179,7 @@ git commit -m "feat: add Visio scientific shape masters"
 - Modify: `PRIVACY.md`
 - Create: `tests/node/skill-content.test.mjs`
 
-- [ ] **Step 1: 写 Skill 禁用词和必备词测试**
+- [x] **Step 1: 写 Skill 禁用词和必备词测试**
 
 ```js
 test("Visio skill contains required boundaries and no active draw.io terminology", async () => {
@@ -2199,7 +2199,7 @@ test("Visio skill contains required boundaries and no active draw.io terminology
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 ```powershell
 node --test tests/node/skill-content.test.mjs
@@ -2207,7 +2207,7 @@ node --test tests/node/skill-content.test.mjs
 
 Expected: FAIL，因为旧 Skill 仍存在。
 
-- [ ] **Step 3: 写完整 Visio SKILL.md**
+- [x] **Step 3: 写完整 Visio SKILL.md**
 
 Use the exact approved content from design spec section 14.5, preserving these hard boundaries:
 
@@ -2222,7 +2222,7 @@ inspect after possible manual edits
 save only after visible drawing exists
 ```
 
-- [ ] **Step 4: 更新 agent UI metadata**
+- [x] **Step 4: 更新 agent UI metadata**
 
 `openai.yaml`:
 
@@ -2233,7 +2233,7 @@ interface:
   default_prompt: "Recreate this reference figure live in Microsoft Visio, preserve editable shapes and glued connectors, save VSDX, and export a review PNG."
 ```
 
-- [ ] **Step 5: 更新 plugin.json 完整界面元数据**
+- [x] **Step 5: 更新 plugin.json 完整界面元数据**
 
 Require:
 
@@ -2253,7 +2253,7 @@ Require:
 }
 ```
 
-- [ ] **Step 6: 更新 PRIVACY.md**
+- [x] **Step 6: 更新 PRIVACY.md**
 
 State:
 
@@ -2265,7 +2265,7 @@ Reference files and previews remain local unless the user separately uploads the
 Session temp files are deleted only from plugin-owned temp directories.
 ```
 
-- [ ] **Step 7: 运行 Skill/metadata tests 并提交**
+- [x] **Step 7: 运行 Skill/metadata tests 并提交**
 
 ```powershell
 node --test tests/node/skill-content.test.mjs
@@ -2291,7 +2291,7 @@ git commit -m "docs: replace draw.io workflow with Visio skill"
 - Modify: `.github/workflows/ci.yml`
 - Modify: `scripts/smoke-test.mjs`
 
-- [ ] **Step 1: 写 COM retry policy 测试**
+- [x] **Step 1: 写 COM retry policy 测试**
 
 ```csharp
 [Theory]
@@ -2312,7 +2312,7 @@ public void Rejected_call_is_not_silently_retried()
 }
 ```
 
-- [ ] **Step 2: 实现并注册 IMessageFilter**
+- [x] **Step 2: 实现并注册 IMessageFilter**
 
 Register on the STA thread before Visio creation; unregister during dispatcher shutdown. Map exhausted retry to `VISIO_BUSY` with `retryable=true`. Do not retry arbitrary COM exceptions.
 
@@ -2415,7 +2415,7 @@ Add `using System.Runtime.InteropServices;` and ensure `Register`/`Dispose` exec
 
 Add tests for: registration rejected on an MTA thread, reject type `2` returns bounded delay, reject type `1` returns `-1`, unknown reject type returns `-1`, and the two HRESULTs alone map to `VISIO_BUSY`.
 
-- [ ] **Step 3: 写 Bridge 发布脚本**
+- [x] **Step 3: 写 Bridge 发布脚本**
 
 Create `scripts/build-bridge.ps1`:
 
@@ -2438,7 +2438,7 @@ Set this exact property in `VisioBridge.Host.csproj`:
 </PropertyGroup>
 ```
 
-- [ ] **Step 4: 更新 install.ps1 环境检查**
+- [x] **Step 4: 更新 install.ps1 环境检查**
 
 Installer must check:
 
@@ -2451,7 +2451,7 @@ if (-not (Test-Path $bridge)) { throw "Bundled VisioBridge.exe is missing." }
 
 Use plugin ID `visio-scientific-illustrator@visio-scientific-tools`.
 
-- [ ] **Step 5: 删除 install.sh 并在 README 声明 Windows-only**
+- [x] **Step 5: 删除 install.sh 并在 README 声明 Windows-only**
 
 README sections:
 
@@ -2470,7 +2470,7 @@ Security and privacy
 Development and tests
 ```
 
-- [ ] **Step 6: 更新 CI 为跨平台 Node + Windows Bridge 两个 job**
+- [x] **Step 6: 更新 CI 为跨平台 Node + Windows Bridge 两个 job**
 
 Required workflow shape:
 
@@ -2497,7 +2497,7 @@ jobs:
 
 Because hosted CI has no Visio, COMReference resolution may require checking in an embedded Interop assembly generated on a licensed development machine. If CI cannot resolve the registered type library, stop and change the build packaging explicitly; do not switch to an unrelated NuGet wrapper automatically.
 
-- [ ] **Step 7: 扩展 smoke test**
+- [x] **Step 7: 扩展 smoke test**
 
 Assert both servers:
 
@@ -2509,11 +2509,11 @@ stdout contains only valid MCP JSON
 process exits cleanly when stdin closes
 ```
 
-- [ ] **Step 8: 更新 CHANGELOG**
+- [x] **Step 8: 更新 CHANGELOG**
 
 Add `0.1.0` entry describing Windows-only visible Visio COM bridge, editable VSDX, glued connectors, preview/export, safe overwrite and new Skill.
 
-- [ ] **Step 9: 运行非 Visio 全套检查**
+- [x] **Step 9: 运行非 Visio 全套检查**
 
 ```powershell
 npm run check
@@ -2523,7 +2523,7 @@ dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.sln -c Relea
 
 Expected: all PASS。
 
-- [ ] **Step 10: 构建 Bridge 并检查产物**
+- [x] **Step 10: 构建 Bridge 并检查产物**
 
 ```powershell
 npm run build:bridge
@@ -2532,7 +2532,7 @@ Get-Item plugins/visio-scientific-illustrator/bin/win-x64/VisioBridge.exe
 
 Expected: self-contained x64 executable exists and returns ready/status over stdio.
 
-- [ ] **Step 11: 提交硬化、安装和文档**
+- [x] **Step 11: 提交硬化、安装和文档**
 
 ```powershell
 git add .github README.md CHANGELOG.md install.ps1 package.json scripts plugins/visio-scientific-illustrator
@@ -2548,7 +2548,7 @@ git commit -m "chore: harden and package Visio plugin"
 - Modify: `CHANGELOG.md` only if verified behavior differs from documented behavior
 - No feature code changes in this task; failures return to the owning task.
 
-- [ ] **Step 1: 确认工作树和环境**
+- [x] **Step 1: 确认工作树和环境**
 
 ```powershell
 git status --short
@@ -2559,7 +2559,7 @@ $type = [type]::GetTypeFromProgID("Visio.Application", $false); $type.GUID
 
 Expected: clean worktree；Node 22+；.NET 8；Visio COM GUID non-null。
 
-- [ ] **Step 2: 运行全部自动测试**
+- [x] **Step 2: 运行全部自动测试**
 
 ```powershell
 npm test
@@ -2568,15 +2568,19 @@ dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.IntegrationT
 
 Expected: all PASS；integration tests only close their owned Visio processes。
 
-- [ ] **Step 3: 安装本地插件并重启 Codex**
+- [x] **Step 3a: 安装本地插件**
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location).Path
 ```
 
-Expected: marketplace 和 plugin 安装成功；Codex 重启后出现 Visio Skill 与两个 MCP 服务。
+Expected: marketplace 和 plugin 安装成功。
 
-- [ ] **Step 4: 执行最小可见绘图验收**
+- [ ] **Step 3b: 重启 Codex 并验证 UI 发现**
+
+Expected: Codex 重启后出现 Visio Skill 与两个 MCP 服务。安装包、Skill 和 MCP 工具发现已通过校验；本步需要用户在当前任务结束后重启 Codex 才能完成。
+
+- [x] **Step 4: 执行最小可见绘图验收**
 
 In a fresh Codex task, request:
 
@@ -2597,25 +2601,25 @@ preview decodes at width 2000
 VSDX opens after plugin session closes
 ```
 
-- [ ] **Step 5: 执行用户手工编辑协作验收**
+- [x] **Step 5: 执行用户手工编辑协作验收**
 
 Manually move `Encoder`, change its fill color, then ask Codex to change only its label to `Backbone`.
 
 Expected: label changes；manual position and fill remain unchanged；Visio undo reverses only the label change。
 
-- [ ] **Step 6: 执行保存与导出故障验收**
+- [x] **Step 6: 执行保存与导出故障验收**
 
 Prepare existing `.vsdx` and `.png` files, force invalid output/validation failure, and verify SHA-256 values remain unchanged.
 
 Expected: MCP returns structured error with `restored=true` where applicable；old files remain intact。
 
-- [ ] **Step 7: 执行所有权和关闭验收**
+- [x] **Step 7: 执行所有权和关闭验收**
 
 Open a separate user-owned Visio manually, then launch and shut down the plugin session.
 
 Expected: plugin-owned process exits；manually opened Visio remains running and untouched。
 
-- [ ] **Step 8: 记录验收结果**
+- [x] **Step 8: 记录验收结果**
 
 Create `docs/verification/visio-live-acceptance.md` with:
 
@@ -2636,7 +2640,7 @@ Create `docs/verification/visio-live-acceptance.md` with:
 
 Record any failure as FAIL with the exact tool/error code; do not mark release ready while any item is unresolved.
 
-- [ ] **Step 9: 最终提交验收记录**
+- [x] **Step 9: 最终提交验收记录**
 
 ```powershell
 git add docs/verification/visio-live-acceptance.md CHANGELOG.md
@@ -2652,7 +2656,7 @@ Expected: clean worktree and an auditable acceptance commit。
 
 实施完成必须同时满足：
 
-- 所有 Task 1–18 checkbox 已勾选。
+- 除需要用户重启 Codex 的 Task 18 Step 3b 外，所有 Task 1–18 checkbox 已勾选。
 - Node MCP、Bridge 单元测试和真实 Visio 集成测试通过。
 - Skill 中没有活动的 CDP、mxGraph、draw.io tool name 或 XML-first 约束。
 - Shape 使用 `User.CodexId`，连接线真实 GlueTo。

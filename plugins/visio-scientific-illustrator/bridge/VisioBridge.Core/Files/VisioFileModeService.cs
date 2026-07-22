@@ -23,17 +23,20 @@ public sealed class VisioFileModeService : IDisposable
     {
         ArgumentNullException.ThrowIfNull(command);
         var input = ValidateInputPath(command.InputPath);
-        return _dispatcher.InvokeAsync(() => WithDocument(input, (_, document) =>
-        {
-            new VisioDocumentValidator().Validate(input);
-            var counts = Count(document);
-            return new FileValidationResult(
-                input,
-                counts.Pages,
-                counts.Shapes,
-                counts.Connectors,
-                true);
-        })).GetAwaiter().GetResult();
+        return ExecuteFileMode(
+            () => _dispatcher.InvokeAsync(() => WithDocument(input, (_, document) =>
+            {
+                new VisioDocumentValidator().Validate(input);
+                var counts = Count(document);
+                return new FileValidationResult(
+                    input,
+                    counts.Pages,
+                    counts.Shapes,
+                    counts.Connectors,
+                    true);
+            })).GetAwaiter().GetResult(),
+            BridgeErrorCodes.ValidationFailed,
+            "open_validate");
     }
 
     public FileInspectionResult Inspect(InspectFileCommand command)
@@ -46,8 +49,9 @@ public sealed class VisioFileModeService : IDisposable
                 "max_shapes 必须在 1–5000 范围内。");
         }
         var input = ValidateInputPath(command.InputPath);
-        return _dispatcher.InvokeAsync(() => WithDocument(input, (application, document) =>
-        {
+        return ExecuteFileMode(
+            () => _dispatcher.InvokeAsync(() => WithDocument(input, (application, document) =>
+            {
             new VisioDocumentValidator().Validate(input);
             var results = new List<PageInspectionResult>();
             var pages = document.Pages;
@@ -83,7 +87,9 @@ public sealed class VisioFileModeService : IDisposable
                 true,
                 results,
                 []);
-        })).GetAwaiter().GetResult();
+            })).GetAwaiter().GetResult(),
+            BridgeErrorCodes.ValidationFailed,
+            "open_inspect");
     }
 
     public FileExportResult Export(ExportFileCommand command)
@@ -107,8 +113,9 @@ public sealed class VisioFileModeService : IDisposable
                 $"输出文件已存在: {output}");
         }
 
-        return _dispatcher.InvokeAsync(() => WithDocument(input, (application, document) =>
-        {
+        return ExecuteFileMode(
+            () => _dispatcher.InvokeAsync(() => WithDocument(input, (application, document) =>
+            {
             new VisioDocumentValidator().Validate(input);
             var directory = Path.GetDirectoryName(output)!;
             var temp = Path.Combine(
@@ -117,6 +124,8 @@ public sealed class VisioFileModeService : IDisposable
             var backup = Path.Combine(
                 directory,
                 $".{Path.GetFileName(output)}.{Guid.NewGuid():N}.backup");
+            var candidateValidated = false;
+            var commitSucceeded = false;
             try
             {
                 var page = application.ActivePage;
@@ -129,7 +138,9 @@ public sealed class VisioFileModeService : IDisposable
                     Release(ref page);
                 }
                 ValidateExport(temp, format, format == "png" ? command.Width : null);
-                CommitOutput(temp, output, backup, existed);
+                candidateValidated = true;
+                new SafeOutputCommitter().Commit(temp, output, backup, existed);
+                commitSucceeded = true;
                 return new FileExportResult(
                     input,
                     output,
@@ -144,7 +155,10 @@ public sealed class VisioFileModeService : IDisposable
             }
             catch (COMException error)
             {
-                throw ComExceptionTranslator.Translate(error);
+                throw TranslateFileModeCom(
+                    error,
+                    BridgeErrorCodes.ExportFailed,
+                    "export");
             }
             catch (Exception error)
             {
@@ -155,10 +169,15 @@ public sealed class VisioFileModeService : IDisposable
             }
             finally
             {
-                if (File.Exists(temp)) File.Delete(temp);
-                if (File.Exists(backup)) File.Delete(backup);
+                if (commitSucceeded || !candidateValidated)
+                {
+                    if (File.Exists(temp)) File.Delete(temp);
+                    if (File.Exists(backup)) File.Delete(backup);
+                }
             }
-        })).GetAwaiter().GetResult();
+            })).GetAwaiter().GetResult(),
+            BridgeErrorCodes.ExportFailed,
+            "open_export");
     }
 
     public void Dispose()
@@ -209,6 +228,52 @@ public sealed class VisioFileModeService : IDisposable
         }
     }
 
+    private static T ExecuteFileMode<T>(
+        Func<T> operation,
+        string failureCode,
+        string phase)
+    {
+        try
+        {
+            return operation();
+        }
+        catch (BridgeCommandException)
+        {
+            throw;
+        }
+        catch (COMException error)
+        {
+            throw TranslateFileModeCom(error, failureCode, phase);
+        }
+        catch (InvalidComObjectException error)
+        {
+            throw new BridgeCommandException(
+                failureCode,
+                $"Visio 文件模式失败: {phase}。",
+                details: new { phase, reason = error.Message });
+        }
+    }
+
+    internal static BridgeCommandException TranslateFileModeCom(
+        COMException error,
+        string failureCode,
+        string phase)
+    {
+        var translated = ComExceptionTranslator.Translate(error);
+        if (translated.Code == BridgeErrorCodes.VisioBusy) return translated;
+        if (error.HResult == unchecked((int)0x80040154))
+        {
+            return new BridgeCommandException(
+                BridgeErrorCodes.VisioNotInstalled,
+                "Microsoft Visio 桌面版 COM 组件未注册。",
+                details: new { phase, hresult = error.HResult });
+        }
+        return new BridgeCommandException(
+            failureCode,
+            $"Visio 文件模式失败: {phase}。",
+            details: new { phase, hresult = error.HResult, reason = error.Message });
+    }
+
     private static void ExportCore(
         Visio.InvisibleApp application,
         Visio.Document document,
@@ -253,23 +318,6 @@ public sealed class VisioFileModeService : IDisposable
             true,
             false,
             Type.Missing);
-    }
-
-    private static void CommitOutput(
-        string temp,
-        string output,
-        string backup,
-        bool existed)
-    {
-        if (existed)
-        {
-            File.Replace(temp, output, backup, ignoreMetadataErrors: true);
-            File.Delete(backup);
-        }
-        else
-        {
-            File.Move(temp, output);
-        }
     }
 
     private static void ValidateExport(string path, string format, int? expectedWidth)

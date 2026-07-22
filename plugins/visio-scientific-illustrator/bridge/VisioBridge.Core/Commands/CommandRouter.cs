@@ -45,8 +45,7 @@ public sealed class CommandRouter
 
     private object OpenDocument(OpenDocumentCommand command) => _session.Open(
         command.FilePath,
-        command.WidthPx,
-        command.HeightPx,
+        command.PageName,
         command.Dpi,
         command.Maximize);
 

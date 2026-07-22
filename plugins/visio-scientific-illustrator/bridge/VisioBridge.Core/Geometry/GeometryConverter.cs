@@ -63,6 +63,27 @@ public sealed class GeometryConverter
         return result;
     }
 
+    public double PixelsToInches(double pixels)
+    {
+        if (!double.IsFinite(pixels)) throw Invalid("像素距离必须是有限数值。");
+        return pixels / _canvas.Dpi;
+    }
+
+    public (double X, double Y) ToVisioPoint(PixelPoint point)
+    {
+        if (!AreFinite(point.X, point.Y)
+            || point.X < -_marginPx
+            || point.Y < -_marginPx
+            || point.X > _canvas.WidthPx + _marginPx
+            || point.Y > _canvas.HeightPx + _marginPx)
+        {
+            throw Invalid("连接线路径点超出允许的画布边界。");
+        }
+        return (
+            point.X / _canvas.Dpi,
+            (_canvas.HeightPx - point.Y) / _canvas.Dpi);
+    }
+
     private void ValidatePixelBox(PixelBox box)
     {
         if (!AreFinite(box.X, box.Y, box.Width, box.Height)

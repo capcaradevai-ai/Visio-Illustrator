@@ -24,7 +24,7 @@ public sealed class VisioSessionValidationTests
         using var session = new VisioSession();
 
         var error = Assert.Throws<BridgeCommandException>(() =>
-            session.Open("figure.vsdx", 1600, 1000, 96, true));
+            session.Open("figure.vsdx", null, 96, true));
 
         Assert.Equal(BridgeErrorCodes.InvalidArgument, error.Code);
         Assert.Equal(SessionState.Stopped, session.State);

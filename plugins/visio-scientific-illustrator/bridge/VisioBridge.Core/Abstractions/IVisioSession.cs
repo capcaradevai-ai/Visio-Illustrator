@@ -46,8 +46,7 @@ public interface IVisioSession : IDisposable
 
     LaunchResult Open(
         string absoluteVsdxPath,
-        int widthPx,
-        int heightPx,
+        string? pageName,
         int dpi,
         bool maximize);
 
