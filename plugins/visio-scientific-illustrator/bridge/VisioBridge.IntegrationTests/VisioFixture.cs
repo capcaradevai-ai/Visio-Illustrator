@@ -95,6 +95,27 @@ public sealed class VisioFixture : IDisposable
     public ContainerMutationResult AddToContainer(AddToContainerCommand command) =>
         _session.AddToContainer(command);
 
+    public LayoutMutationResult SetZOrder(SetZOrderCommand command) =>
+        _session.SetZOrder(command);
+
+    public LayoutMutationResult AssignLayer(AssignLayerCommand command) =>
+        _session.AssignLayer(command);
+
+    public LayoutMutationResult AlignShapes(AlignShapesCommand command) =>
+        _session.AlignShapes(command);
+
+    public LayoutMutationResult DistributeShapes(DistributeShapesCommand command) =>
+        _session.DistributeShapes(command);
+
+    public LayoutMutationResult MatchSize(MatchSizeCommand command) =>
+        _session.MatchSize(command);
+
+    public LayoutMutationResult SetProtection(SetProtectionCommand command) =>
+        _session.SetProtection(command);
+
+    public LayoutMutationResult DuplicateShape(DuplicateShapeCommand command) =>
+        _session.DuplicateShape(command);
+
     public static VisioFixture WithOneShape()
     {
         var fixture = StartVisible();

@@ -79,6 +79,13 @@ async function handleTool(name, args) {
   if (name === "visio_live_group_shapes") return client.call("group_shapes", args);
   if (name === "visio_live_ungroup_shape") return client.call("ungroup_shape", args);
   if (name === "visio_live_add_to_container") return client.call("add_to_container", args);
+  if (name === "visio_live_set_z_order") return client.call("set_z_order", args);
+  if (name === "visio_live_assign_layer") return client.call("assign_layer", args);
+  if (name === "visio_live_align_shapes") return client.call("align_shapes", args);
+  if (name === "visio_live_distribute_shapes") return client.call("distribute_shapes", args);
+  if (name === "visio_live_match_size") return client.call("match_size", args);
+  if (name === "visio_live_set_protection") return client.call("set_protection", args);
+  if (name === "visio_live_duplicate_shape") return client.call("duplicate_shape", args);
   return { error: "UNSUPPORTED_OPERATION", message: `不支持工具: ${name}`, tool: name };
 }
 

@@ -36,6 +36,13 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_group_shapes",
     "visio_live_ungroup_shape",
     "visio_live_add_to_container",
+    "visio_live_set_z_order",
+    "visio_live_assign_layer",
+    "visio_live_align_shapes",
+    "visio_live_distribute_shapes",
+    "visio_live_match_size",
+    "visio_live_set_protection",
+    "visio_live_duplicate_shape",
   ]);
   assert.equal(JSON.stringify(liveTools).includes("drawio"), false);
   assert.deepEqual(fileTools.map((tool) => tool.name), [
@@ -43,6 +50,47 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_inspect_file",
     "visio_export",
   ]);
+});
+
+test("layout schemas expose native Visio composition operations", () => {
+  const byName = (name) => liveTools.find((tool) => tool.name === name).inputSchema;
+
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_id: "panel", action: "absolute", position: 3 },
+    byName("visio_live_set_z_order"),
+  ));
+  assert.throws(() => validateSchema(
+    { semantic_id: "panel", action: "absolute" },
+    byName("visio_live_set_z_order"),
+  ));
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_ids: ["a", "b"], layer: "annotations", replace_existing: true },
+    byName("visio_live_assign_layer"),
+  ));
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_ids: ["a", "b"], alignment: "middle", reference_semantic_id: "a" },
+    byName("visio_live_align_shapes"),
+  ));
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_ids: ["a", "b", "c"], axis: "horizontal", distribution: "equal_gap" },
+    byName("visio_live_distribute_shapes"),
+  ));
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_ids: ["a", "b"], reference_semantic_id: "a", dimension: "both" },
+    byName("visio_live_match_size"),
+  ));
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_ids: ["a"], fields: { move_x: true, vertex_edit: false } },
+    byName("visio_live_set_protection"),
+  ));
+  assert.throws(() => validateSchema(
+    { semantic_ids: ["a"], fields: {} },
+    byName("visio_live_set_protection"),
+  ));
+  assert.doesNotThrow(() => validateSchema(
+    { semantic_id: "a", new_semantic_id: "a-copy", offset_x: 20, offset_y: 30 },
+    byName("visio_live_duplicate_shape"),
+  ));
 });
 
 test("schemas reject unknown nested fields and invalid enums", () => {

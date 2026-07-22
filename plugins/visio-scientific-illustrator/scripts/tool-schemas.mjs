@@ -764,6 +764,131 @@ export const liveTools = [
       additionalProperties: false,
     },
   },
+  {
+    name: "visio_live_set_z_order",
+    description: "Change a shape's native Visio stacking order and report before/after indices.",
+    inputSchema: {
+      oneOf: [
+        {
+          type: "object",
+          required: ["semantic_id", "action"],
+          properties: {
+            semantic_id: semanticId,
+            action: { type: "string", enum: ["bring_to_front", "send_to_back", "move_forward", "move_backward"] },
+          },
+          additionalProperties: false,
+        },
+        {
+          type: "object",
+          required: ["semantic_id", "action", "position"],
+          properties: {
+            semantic_id: semanticId,
+            action: { const: "absolute" },
+            position: { type: "integer", minimum: 1 },
+          },
+          additionalProperties: false,
+        },
+      ],
+    },
+  },
+  {
+    name: "visio_live_assign_layer",
+    description: "Assign shapes to a native Visio layer, optionally replacing existing layer membership.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_ids", "layer"],
+      properties: {
+        semantic_ids: { type: "array", minItems: 1, maxItems: 500, items: semanticId },
+        layer: { type: "string", minLength: 1, maxLength: 255 },
+        create_if_missing: { type: "boolean", default: true },
+        replace_existing: { type: "boolean", default: false },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_align_shapes",
+    description: "Align editable shapes in page coordinates, including members of groups.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_ids", "alignment"],
+      properties: {
+        semantic_ids: { type: "array", minItems: 2, maxItems: 500, items: semanticId },
+        alignment: { type: "string", enum: ["left", "center", "right", "top", "middle", "bottom"] },
+        reference_semantic_id: semanticId,
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_distribute_shapes",
+    description: "Distribute at least three shapes by equal page-space gaps or centers.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_ids", "axis", "distribution"],
+      properties: {
+        semantic_ids: { type: "array", minItems: 3, maxItems: 500, items: semanticId },
+        axis: { type: "string", enum: ["horizontal", "vertical"] },
+        distribution: { type: "string", enum: ["equal_gap", "equal_center"] },
+        preserve_outer_bounds: { type: "boolean", default: true },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_match_size",
+    description: "Match width, height, or both dimensions to a reference shape in page coordinates.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_ids", "reference_semantic_id", "dimension"],
+      properties: {
+        semantic_ids: { type: "array", minItems: 2, maxItems: 500, items: semanticId },
+        reference_semantic_id: semanticId,
+        dimension: { type: "string", enum: ["width", "height", "both"] },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_set_protection",
+    description: "Set explicit Visio ShapeSheet Lock cells without changing unspecified protection fields.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_ids", "fields"],
+      properties: {
+        semantic_ids: { type: "array", minItems: 1, maxItems: 500, items: semanticId },
+        fields: {
+          type: "object",
+          properties: {
+            move_x: { type: "boolean" }, move_y: { type: "boolean" },
+            width: { type: "boolean" }, height: { type: "boolean" }, rotate: { type: "boolean" },
+            text_edit: { type: "boolean" }, delete: { type: "boolean" }, format: { type: "boolean" },
+            group: { type: "boolean" }, select: { type: "boolean" }, aspect: { type: "boolean" },
+            vertex_edit: { type: "boolean" }, begin: { type: "boolean" }, end: { type: "boolean" },
+          },
+          anyOf: ["move_x", "move_y", "width", "height", "rotate", "text_edit", "delete", "format", "group", "select", "aspect", "vertex_edit", "begin", "end"]
+            .map((name) => ({ required: [name] })),
+          additionalProperties: false,
+        },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "visio_live_duplicate_shape",
+    description: "Duplicate an editable Visio shape or group and rewrite copied semantic IDs.",
+    inputSchema: {
+      type: "object",
+      required: ["semantic_id", "new_semantic_id"],
+      properties: {
+        semantic_id: semanticId,
+        new_semantic_id: semanticId,
+        offset_x: { type: "number", default: 20 },
+        offset_y: { type: "number", default: 20 },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
 
 export const fileTools = [

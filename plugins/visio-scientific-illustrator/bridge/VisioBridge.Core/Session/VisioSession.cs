@@ -4,6 +4,7 @@ using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
+using VisioBridge.Core.Layout;
 using VisioBridge.Core.Interop;
 using VisioBridge.Core.Export;
 using VisioBridge.Core.Files;
@@ -242,6 +243,27 @@ public sealed class VisioSession : IVisioSession
         ExecuteUndoable(
             "Codex add to container",
             () => CreateGroupingService().AddToContainer(command));
+
+    public LayoutMutationResult SetZOrder(SetZOrderCommand command) =>
+        ExecuteUndoable("Codex set z-order", () => CreateLayoutService().SetZOrder(command));
+
+    public LayoutMutationResult AssignLayer(AssignLayerCommand command) =>
+        ExecuteUndoable("Codex assign layer", () => CreateLayoutService().AssignLayer(command));
+
+    public LayoutMutationResult AlignShapes(AlignShapesCommand command) =>
+        ExecuteUndoable("Codex align shapes", () => CreateLayoutService().Align(command));
+
+    public LayoutMutationResult DistributeShapes(DistributeShapesCommand command) =>
+        ExecuteUndoable("Codex distribute shapes", () => CreateLayoutService().Distribute(command));
+
+    public LayoutMutationResult MatchSize(MatchSizeCommand command) =>
+        ExecuteUndoable("Codex match size", () => CreateLayoutService().MatchSize(command));
+
+    public LayoutMutationResult SetProtection(SetProtectionCommand command) =>
+        ExecuteUndoable("Codex set protection", () => CreateLayoutService().SetProtection(command));
+
+    public LayoutMutationResult DuplicateShape(DuplicateShapeCommand command) =>
+        ExecuteUndoable("Codex duplicate shape", () => CreateLayoutService().Duplicate(command));
 
     public void UndoLastForIntegrationTest()
         => InvokeReady(() => RequireReadyApplication().Undo());
@@ -909,6 +931,15 @@ public sealed class VisioSession : IVisioSession
         return new VisioGroupingService(
             _page!,
             new ShapeRepository(accessor));
+    }
+
+    private LayoutService CreateLayoutService()
+    {
+        RequireReadyApplication();
+        var geometry = new GeometryConverter(_canvas!);
+        var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+        var inspector = new PageInspector(_document!, _page!, geometry);
+        return new LayoutService(_page!, repository, geometry, inspector);
     }
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)

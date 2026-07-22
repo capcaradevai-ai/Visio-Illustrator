@@ -41,6 +41,20 @@ public interface IVisioSession : IDisposable
 
     ContainerMutationResult AddToContainer(AddToContainerCommand command);
 
+    LayoutMutationResult SetZOrder(SetZOrderCommand command);
+
+    LayoutMutationResult AssignLayer(AssignLayerCommand command);
+
+    LayoutMutationResult AlignShapes(AlignShapesCommand command);
+
+    LayoutMutationResult DistributeShapes(DistributeShapesCommand command);
+
+    LayoutMutationResult MatchSize(MatchSizeCommand command);
+
+    LayoutMutationResult SetProtection(SetProtectionCommand command);
+
+    LayoutMutationResult DuplicateShape(DuplicateShapeCommand command);
+
     LaunchResult LaunchNew(
         string pageName,
         int widthPx,
