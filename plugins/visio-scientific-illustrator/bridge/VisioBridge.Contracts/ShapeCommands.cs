@@ -7,7 +7,8 @@ public sealed record AddShapeCommand(
     string Shape,
     PixelBox Bounds,
     string? Label = null,
-    ShapeStyle? Style = null);
+    ShapeStyle? Style = null,
+    [property: JsonPropertyName("rich_text")] RichText? RichText = null);
 
 public sealed record AddImageCommand(
     [property: JsonPropertyName("semantic_id")] string SemanticId,

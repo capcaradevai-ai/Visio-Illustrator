@@ -127,6 +127,58 @@ const shapeStyle = {
   additionalProperties: false,
 };
 
+const richText = {
+  type: "object",
+  required: ["text"],
+  properties: {
+    text: { type: "string", maxLength: 10000 },
+    paragraph: {
+      type: "object",
+      properties: {
+        horizontal_align: { type: "string", enum: ["left", "center", "right", "justify"] },
+        vertical_align: { type: "string", enum: ["top", "middle", "bottom"] },
+        left_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+        right_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+        top_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+        bottom_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+        line_spacing_pt: { type: "number", minimum: -1000, maximum: 1000 },
+        space_before_pt: { type: "number", minimum: -1000, maximum: 1000 },
+        space_after_pt: { type: "number", minimum: -1000, maximum: 1000 },
+      },
+      additionalProperties: false,
+    },
+    runs: {
+      type: "array",
+      maxItems: 2000,
+      items: {
+        type: "object",
+        required: ["start", "length"],
+        properties: {
+          start: { type: "integer", minimum: 0 },
+          length: { type: "integer", minimum: 1 },
+          font_family: { type: "string", minLength: 1, maxLength: 255 },
+          font_size_pt: { type: "number", minimum: 1, maximum: 200 },
+          color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+          bold: { type: "boolean" },
+          italic: { type: "boolean" },
+          underline: { type: "boolean" },
+          strikethrough: { type: "boolean" },
+          superscript: { type: "boolean" },
+          subscript: { type: "boolean" },
+        },
+        additionalProperties: false,
+        not: {
+          properties: { superscript: { const: true }, subscript: { const: true } },
+          required: ["superscript", "subscript"],
+        },
+      },
+    },
+    fit: { type: "string", enum: ["none", "shrink_text", "resize_shape"] },
+    minimum_font_size_pt: { type: "number", minimum: 1, maximum: 200 },
+  },
+  additionalProperties: false,
+};
+
 const connectorStyle = {
   type: "object",
   properties: {
@@ -150,8 +202,11 @@ const shapeProperties = {
   },
   bounds,
   label: { type: "string", maxLength: 10000 },
+  rich_text: richText,
   style: shapeStyle,
 };
+
+const labelRichTextExclusion = { required: ["label", "rich_text"] };
 
 const waypoint = {
   type: "object",
@@ -205,6 +260,7 @@ function connectorSchema(extraProperties = {}, extraRequired = []) {
 const updateProperties = {
   semantic_id: semanticId,
   label: { type: "string", maxLength: 10000 },
+  rich_text: richText,
   x: { type: "number", minimum: 0 },
   y: { type: "number", minimum: 0 },
   width: { type: "number", exclusiveMinimum: 0 },
@@ -222,6 +278,7 @@ const sequenceOperations = {
         type: "object",
         required: ["type", "semantic_id", "shape", "bounds"],
         properties: { type: { const: "shape" }, ...shapeProperties },
+        not: labelRichTextExclusion,
         additionalProperties: false,
       },
       {
@@ -240,6 +297,7 @@ const sequenceOperations = {
         type: "object",
         required: ["type", "semantic_id"],
         properties: { type: { const: "update" }, ...updateProperties },
+        not: labelRichTextExclusion,
         additionalProperties: false,
       },
       {
@@ -349,6 +407,7 @@ export const liveTools = [
       type: "object",
       required: ["semantic_id", "shape", "bounds"],
       properties: shapeProperties,
+      not: labelRichTextExclusion,
       additionalProperties: false,
     },
   },
@@ -378,6 +437,7 @@ export const liveTools = [
       type: "object",
       required: ["semantic_id"],
       properties: updateProperties,
+      not: labelRichTextExclusion,
       additionalProperties: false,
     },
   },

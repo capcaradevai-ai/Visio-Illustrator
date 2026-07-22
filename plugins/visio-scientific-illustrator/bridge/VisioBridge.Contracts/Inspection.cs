@@ -31,7 +31,8 @@ public sealed record UpdateShapeCommand(
     double? Y = null,
     double? Width = null,
     double? Height = null,
-    ShapeStyle? Style = null);
+    ShapeStyle? Style = null,
+    [property: JsonPropertyName("rich_text")] RichText? RichText = null);
 
 public sealed record DeleteShapeCommand(
     [property: JsonPropertyName("semantic_id")] string SemanticId,

@@ -92,6 +92,27 @@ test("shape schema accepts rich Visio styles and rejects mixed legacy fields", (
   }, addShape.inputSchema));
 });
 
+test("shape schema accepts editable rich text runs", () => {
+  const addShape = liveTools.find((tool) => tool.name === "visio_live_add_shape");
+  const input = {
+    semantic_id: "equation",
+    shape: "text",
+    bounds: { x: 10, y: 10, width: 300, height: 60 },
+    rich_text: {
+      text: "A_l^i = log(|H_l| + epsilon)",
+      paragraph: { horizontal_align: "center", vertical_align: "middle" },
+      runs: [
+        { start: 2, length: 1, subscript: true },
+        { start: 4, length: 1, superscript: true },
+      ],
+      fit: "shrink_text",
+    },
+  };
+
+  assert.doesNotThrow(() => validateSchema(input, addShape.inputSchema));
+  assert.throws(() => validateSchema({ ...input, label: "duplicate" }, addShape.inputSchema));
+});
+
 test("launch open mode requires a file path", () => {
   const launch = liveTools.find((tool) => tool.name === "visio_live_launch");
   assert.throws(() => validateSchema({ mode: "open" }, launch.inputSchema));

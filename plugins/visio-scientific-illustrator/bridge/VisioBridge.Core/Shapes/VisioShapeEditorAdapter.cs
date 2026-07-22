@@ -3,6 +3,7 @@ using VisioBridge.Contracts;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
+using VisioBridge.Core.Text;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Shapes;
@@ -37,7 +38,10 @@ internal sealed class VisioShapeEditorAdapter : IShapeEditorAdapter
     {
         using var handle = _repository.Resolve(command.SemanticId);
         var shape = ((VisioShapeHandle)handle).Shape;
-        if (command.Label is not null) shape.Text = command.Label;
+        if (command.Label is not null && command.RichText is not null)
+            throw new BridgeCommandException(BridgeErrorCodes.InvalidArgument, "label 与 rich_text 不能同时提供。");
+        if (command.RichText is not null) RichTextFormatter.Apply(shape, command.RichText);
+        else if (command.Label is not null) shape.Text = command.Label;
         StyleMapper.Apply(shape, command.Style);
         if (mergedBounds is not null)
         {
