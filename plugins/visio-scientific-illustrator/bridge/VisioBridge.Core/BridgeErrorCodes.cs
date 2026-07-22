@@ -17,6 +17,8 @@ public static class BridgeErrorCodes
     public const string DuplicateSemanticId = "DUPLICATE_SEMANTIC_ID";
     public const string MasterNotFound = "MASTER_NOT_FOUND";
     public const string CellNotFound = "CELL_NOT_FOUND";
+    public const string CellNotAvailable = "CELL_NOT_AVAILABLE";
+    public const string CapabilityNotAvailable = "CAPABILITY_NOT_AVAILABLE";
     public const string ConnectorNotGlued = "CONNECTOR_NOT_GLUED";
     public const string InvalidCoordinates = "INVALID_COORDINATES";
     public const string InvalidStyle = "INVALID_STYLE";

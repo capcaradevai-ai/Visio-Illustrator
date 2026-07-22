@@ -22,7 +22,13 @@ public sealed record ShapeStyle(
     [property: JsonPropertyName("font_color")] string? FontColor = null,
     [property: JsonPropertyName("font_size_pt")] double? FontSizePt = null,
     [property: JsonPropertyName("rotation_deg")] double? RotationDeg = null,
-    bool? Dashed = null);
+    bool? Dashed = null,
+    FillStyle? Fill = null,
+    LineStyle? Line = null,
+    [property: JsonPropertyName("text_block")] TextBlockStyle? TextBlock = null,
+    ShadowStyle? Shadow = null,
+    CornerStyle? Corner = null,
+    [property: JsonPropertyName("opacity_percent")] double? OpacityPercent = null);
 
 public sealed record ShapeMutationResult(
     string SemanticId,

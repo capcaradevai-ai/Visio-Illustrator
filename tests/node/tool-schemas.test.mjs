@@ -58,6 +58,40 @@ test("schemas reject unknown nested fields and invalid enums", () => {
   assert.throws(() => validateSchema({ mode: "selection" }, fit.inputSchema), /\$\.mode/);
 });
 
+test("shape schema accepts rich Visio styles and rejects mixed legacy fields", () => {
+  const addShape = liveTools.find((tool) => tool.name === "visio_live_add_shape");
+  const rich = {
+    semantic_id: "panel",
+    shape: "rounded_rectangle",
+    bounds: { x: 10, y: 10, width: 300, height: 200 },
+    style: {
+      fill: {
+        kind: "gradient",
+        color: "#0B4A8B",
+        secondary_color: "#FFFFFF",
+        transparency_percent: 5,
+        gradient_angle_deg: 90,
+      },
+      line: {
+        color: "#0B4A8B",
+        width_pt: 1.5,
+        cap: "round",
+        join: "round",
+      },
+      text_block: { horizontal_align: "left", vertical_align: "middle", left_margin_pt: 8 },
+      shadow: { enabled: true, color: "#808080", transparency_percent: 50, offset_x_pt: 2, offset_y_pt: 2 },
+      corner: { radius_pt: 8 },
+      opacity_percent: 95,
+    },
+  };
+
+  assert.doesNotThrow(() => validateSchema(rich, addShape.inputSchema));
+  assert.throws(() => validateSchema({
+    ...rich,
+    style: { ...rich.style, fill_color: "#FFFFFF" },
+  }, addShape.inputSchema));
+});
+
 test("launch open mode requires a file path", () => {
   const launch = liveTools.find((tool) => tool.name === "visio_live_launch");
   assert.throws(() => validateSchema({ mode: "open" }, launch.inputSchema));

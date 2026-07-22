@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
+using VisioBridge.Core.Styling;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Shapes;
@@ -9,48 +10,12 @@ public static class StyleMapper
 {
     public static string ToRgbFormula(string input)
     {
-        if (input is null
-            || input.Length != 7
-            || input[0] != '#'
-            || !int.TryParse(input.AsSpan(1, 2), NumberStyles.HexNumber, null, out var red)
-            || !int.TryParse(input.AsSpan(3, 2), NumberStyles.HexNumber, null, out var green)
-            || !int.TryParse(input.AsSpan(5, 2), NumberStyles.HexNumber, null, out var blue))
-        {
-            throw InvalidStyle($"颜色必须使用 #RRGGBB: {input}");
-        }
-        return $"RGB({red},{green},{blue})";
+        return ShapeSheetValue.Color(input);
     }
 
     internal static void Apply(Visio.Shape shape, ShapeStyle? style)
     {
-        if (style is null) return;
-        if (style.FillColor is not null) SetFormula(shape, "FillForegnd", ToRgbFormula(style.FillColor));
-        if (style.FillTransparency is not null)
-        {
-            ValidateRange(style.FillTransparency.Value, 0, 100, "fill_transparency");
-            SetFormula(shape, "FillForegndTrans", Percent(style.FillTransparency.Value));
-        }
-        if (style.StrokeColor is not null) SetFormula(shape, "LineColor", ToRgbFormula(style.StrokeColor));
-        if (style.StrokeWidthPt is not null)
-        {
-            ValidateRange(style.StrokeWidthPt.Value, 0, 50, "stroke_width_pt");
-            SetFormula(shape, "LineWeight", Points(style.StrokeWidthPt.Value));
-        }
-        if (style.FontColor is not null) SetFormula(shape, "Char.Color", ToRgbFormula(style.FontColor));
-        if (style.FontSizePt is not null)
-        {
-            ValidateRange(style.FontSizePt.Value, 1, 200, "font_size_pt");
-            SetFormula(shape, "Char.Size", Points(style.FontSizePt.Value));
-        }
-        if (style.RotationDeg is not null)
-        {
-            ValidateRange(style.RotationDeg.Value, -360, 360, "rotation_deg");
-            SetFormula(shape, "Angle", Degrees(style.RotationDeg.Value));
-        }
-        if (style.Dashed is not null)
-        {
-            SetFormula(shape, "LinePattern", style.Dashed.Value ? "2" : "1");
-        }
+        ShapeSheetWriter.Apply(shape, StyleFormulaCompiler.Compile(style));
     }
 
     internal static void ApplyTextDefaults(Visio.Shape shape, bool transparent)

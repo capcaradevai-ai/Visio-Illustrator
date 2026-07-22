@@ -30,6 +30,26 @@ export class McpValidationError extends Error {
 }
 
 export function validateSchema(value, schema, fieldPath = "$") {
+  if (schema.not) {
+    let matched = true;
+    try {
+      validateSchema(value, schema.not, fieldPath);
+    } catch {
+      matched = false;
+    }
+    if (matched) fail(fieldPath, "匹配了禁止的结构");
+  }
+  if (schema.anyOf) {
+    const matched = schema.anyOf.some((candidate) => {
+      try {
+        validateSchema(value, candidate, fieldPath);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    if (!matched) fail(fieldPath, "必须匹配至少一个允许的结构");
+  }
   if (schema.oneOf) {
     const matches = schema.oneOf.filter((candidate) => {
       try {
@@ -103,7 +123,8 @@ const bridgeErrorCodes = new Set([
   "VISIO_NOT_INSTALLED", "VISIO_START_FAILED", "VISIO_BUSY", "SESSION_NOT_READY",
   "SESSION_INVALIDATED", "DOCUMENT_NOT_FOUND", "PAGE_NOT_FOUND", "SHAPE_NOT_FOUND",
   "DUPLICATE_SEMANTIC_ID", "MASTER_NOT_FOUND", "CELL_NOT_FOUND", "CONNECTOR_NOT_GLUED",
-  "INVALID_COORDINATES", "INVALID_STYLE", "OUTPUT_EXISTS", "SAVE_PATH_REQUIRED",
+  "INVALID_COORDINATES", "INVALID_STYLE", "CELL_NOT_AVAILABLE", "CAPABILITY_NOT_AVAILABLE",
+  "OUTPUT_EXISTS", "SAVE_PATH_REQUIRED",
   "SAVE_FAILED", "VALIDATION_FAILED", "EXPORT_FAILED",
 ]);
 

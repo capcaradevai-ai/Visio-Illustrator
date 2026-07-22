@@ -29,6 +29,72 @@ const bounds = {
   additionalProperties: false,
 };
 
+const fillStyle = {
+  type: "object",
+  required: ["kind"],
+  properties: {
+    kind: { type: "string", enum: ["none", "solid", "gradient", "pattern"] },
+    color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+    secondary_color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+    transparency_percent: { type: "number", minimum: 0, maximum: 100 },
+    secondary_transparency_percent: { type: "number", minimum: 0, maximum: 100 },
+    gradient_angle_deg: { type: "number", minimum: -360, maximum: 360 },
+    gradient_direction: { type: "integer", minimum: 0, maximum: 7 },
+    pattern: { type: "integer", minimum: 2, maximum: 40 },
+  },
+  additionalProperties: false,
+};
+
+const lineStyle = {
+  type: "object",
+  properties: {
+    color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+    width_pt: { type: "number", minimum: 0, maximum: 50 },
+    transparency_percent: { type: "number", minimum: 0, maximum: 100 },
+    pattern: { type: "integer", minimum: 0, maximum: 23 },
+    begin_arrow: { type: "string", enum: ["none", "open", "triangle", "diamond", "oval"] },
+    end_arrow: { type: "string", enum: ["none", "open", "triangle", "diamond", "oval"] },
+    begin_arrow_size: { type: "string", enum: ["small", "medium", "large"] },
+    end_arrow_size: { type: "string", enum: ["small", "medium", "large"] },
+    cap: { type: "string", enum: ["square", "round", "extended"] },
+    join: { type: "string", enum: ["round", "bevel", "miter"] },
+    rounded: { type: "boolean" },
+  },
+  additionalProperties: false,
+};
+
+const textBlockStyle = {
+  type: "object",
+  properties: {
+    horizontal_align: { type: "string", enum: ["left", "center", "right", "justify"] },
+    vertical_align: { type: "string", enum: ["top", "middle", "bottom"] },
+    left_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+    right_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+    top_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+    bottom_margin_pt: { type: "number", minimum: 0, maximum: 1000 },
+  },
+  additionalProperties: false,
+};
+
+const shadowStyle = {
+  type: "object",
+  required: ["enabled"],
+  properties: {
+    enabled: { type: "boolean" },
+    color: { type: "string", pattern: "^#[0-9A-Fa-f]{6}$" },
+    transparency_percent: { type: "number", minimum: 0, maximum: 100 },
+    offset_x_pt: { type: "number", minimum: -1000, maximum: 1000 },
+    offset_y_pt: { type: "number", minimum: -1000, maximum: 1000 },
+  },
+  additionalProperties: false,
+};
+
+const legacyStyleFields = [
+  "fill_color", "fill_transparency", "stroke_color", "stroke_width_pt",
+  "font_color", "font_size_pt", "dashed",
+];
+const richStyleFields = ["fill", "line", "text_block", "shadow", "corner", "opacity_percent"];
+
 const shapeStyle = {
   type: "object",
   properties: {
@@ -40,6 +106,23 @@ const shapeStyle = {
     font_size_pt: { type: "number", minimum: 1, maximum: 200 },
     rotation_deg: { type: "number", minimum: -360, maximum: 360 },
     dashed: { type: "boolean" },
+    fill: fillStyle,
+    line: lineStyle,
+    text_block: textBlockStyle,
+    shadow: shadowStyle,
+    corner: {
+      type: "object",
+      required: ["radius_pt"],
+      properties: { radius_pt: { type: "number", minimum: 0, maximum: 1000 } },
+      additionalProperties: false,
+    },
+    opacity_percent: { type: "number", minimum: 0, maximum: 100 },
+  },
+  not: {
+    allOf: [
+      { anyOf: legacyStyleFields.map((field) => ({ required: [field] })) },
+      { anyOf: richStyleFields.map((field) => ({ required: [field] })) },
+    ],
   },
   additionalProperties: false,
 };
