@@ -101,7 +101,6 @@ public sealed class DrawioSceneCompiler
             var style = ParseStyle((string?)edge.Attribute("style"));
             if (style.GetValueOrDefault("html") == "1") htmlCount++;
             var points = ReadWaypoints(edge);
-            waypointCount += points.Count;
             if (source is null || target is null || !boundsById.ContainsKey(source) || !boundsById.ContainsKey(target))
             {
                 warnings.Add($"edge {CellId(edge)} 缺少有效 source/target，未编译。");
@@ -115,17 +114,27 @@ public sealed class DrawioSceneCompiler
                 decorativeCount++;
                 continue;
             }
+            var (routing, routedPoints) = ResolveRouting(
+                style,
+                points,
+                boundsById[source],
+                boundsById[target]);
+            var sourceAnchor = CompileAnchor(style, "exitX", "exitY")
+                ?? (routedPoints.Count > 0 ? InferAnchor(boundsById[source], routedPoints[0]) : null);
+            var targetAnchor = CompileAnchor(style, "entryX", "entryY")
+                ?? (routedPoints.Count > 0 ? InferAnchor(boundsById[target], routedPoints[^1]) : null);
+            waypointCount += routedPoints.Count;
             connectors.Add(new SceneConnector(
                 edgeId,
                 mappedSource,
                 mappedTarget,
-                MapRouting(style, points),
+                routing,
                 true,
                 PlainText((string?)edge.Attribute("value") ?? string.Empty),
                 CompileConnectorStyle(style),
-                points.Count == 0 ? null : points,
-                CompileAnchor(style, "exitX", "exitY"),
-                CompileAnchor(style, "entryX", "entryY")));
+                routedPoints.Count == 0 ? null : routedPoints,
+                sourceAnchor,
+                targetAnchor));
         }
 
         var regions = BuildRegions(nodes, canvas);
@@ -276,7 +285,7 @@ public sealed class DrawioSceneCompiler
         var fontStyle = (int)Number(style.GetValueOrDefault("fontStyle"), 0);
         var baseline = new InlineFormat(
             style.GetValueOrDefault("fontFamily"),
-            style.TryGetValue("fontSize", out var fontSize) ? Number(fontSize, 12) : null,
+            style.TryGetValue("fontSize", out var fontSize) ? DrawioPixelsToPoints(Number(fontSize, 12)) : null,
             NormalizeOptionalColor(style.GetValueOrDefault("fontColor")),
             (fontStyle & 1) != 0,
             (fontStyle & 2) != 0,
@@ -290,7 +299,7 @@ public sealed class DrawioSceneCompiler
         {
             try
             {
-                var decoded = WebUtility.HtmlDecode(value);
+                var decoded = DecodeHtml(value);
                 var normalized = Regex.Replace(decoded, "<br\\s*/?>", "<br/>", RegexOptions.IgnoreCase);
                 var root = XDocument.Parse($"<root>{normalized}</root>").Root!;
                 foreach (var node in root.Nodes()) AppendInline(node, baseline, text, runs);
@@ -325,8 +334,9 @@ public sealed class DrawioSceneCompiler
         if (node is XText textNode)
         {
             var start = text.Length;
-            text.Append(textNode.Value);
-            AddRun(runs, start, textNode.Value.Length, format);
+            var normalized = NormalizeVisioText(textNode.Value);
+            text.Append(normalized);
+            AddRun(runs, start, normalized.Length, format);
             return;
         }
         if (node is not XElement element) return;
@@ -406,8 +416,17 @@ public sealed class DrawioSceneCompiler
     private static string PlainText(string value)
     {
         var withLines = Regex.Replace(value, "<br\\s*/?>", "\n", RegexOptions.IgnoreCase);
-        return WebUtility.HtmlDecode(Regex.Replace(withLines, "<[^>]+>", string.Empty)).Trim();
+        return NormalizeVisioText(
+            DecodeHtml(Regex.Replace(withLines, "<[^>]+>", string.Empty)).Trim());
     }
+
+    private static string DecodeHtml(string value) => WebUtility.HtmlDecode(
+        value.Replace("&vellip;", "\u22EE", StringComparison.OrdinalIgnoreCase));
+
+    private static string NormalizeVisioText(string value) =>
+        Regex.Replace(value, "\u00B7{3,}", match => new string('.', match.Length));
+
+    private static double DrawioPixelsToPoints(double pixels) => pixels * 72d / 96d;
 
     private static ConnectorStyle CompileConnectorStyle(IReadOnlyDictionary<string, string> style) => new(
         NormalizeOptionalColor(style.GetValueOrDefault("strokeColor")),
@@ -500,12 +519,55 @@ public sealed class DrawioSceneCompiler
             && Number(style.GetValueOrDefault("opacity"), 100) == 0;
     }
 
-    private static string MapRouting(IReadOnlyDictionary<string, string> style, IReadOnlyList<PixelPoint> points)
+    private static (string Routing, IReadOnlyList<PixelPoint> Points) ResolveRouting(
+        IReadOnlyDictionary<string, string> style,
+        IReadOnlyList<PixelPoint> points,
+        PixelBox source,
+        PixelBox target)
     {
-        if (points.Count > 0) return "polyline";
-        if (style.GetValueOrDefault("edgeStyle") == "orthogonalEdgeStyle") return "right_angle";
-        if (style.GetValueOrDefault("curved") == "1") return "dynamic";
-        return "straight";
+        if (points.Count > 0) return ("polyline", points);
+        if (style.GetValueOrDefault("curved") == "1") return ("dynamic", []);
+        if (style.GetValueOrDefault("edgeStyle") != "orthogonalEdgeStyle") return ("straight", []);
+
+        var sourceCenter = new PixelPoint(source.X + source.Width / 2, source.Y + source.Height / 2);
+        var targetCenter = new PixelPoint(target.X + target.Width / 2, target.Y + target.Height / 2);
+        if (Math.Abs(sourceCenter.X - targetCenter.X) <= 40
+            || Math.Abs(sourceCenter.Y - targetCenter.Y) <= 40)
+            return ("straight", []);
+
+        if (Math.Abs(sourceCenter.X - targetCenter.X) >= Math.Abs(sourceCenter.Y - targetCenter.Y))
+        {
+            var middleX = (sourceCenter.X + targetCenter.X) / 2;
+            return ("polyline",
+            [
+                new PixelPoint(middleX, sourceCenter.Y),
+                new PixelPoint(middleX, targetCenter.Y),
+            ]);
+        }
+
+        var middleY = (sourceCenter.Y + targetCenter.Y) / 2;
+        return ("polyline",
+        [
+            new PixelPoint(sourceCenter.X, middleY),
+            new PixelPoint(targetCenter.X, middleY),
+        ]);
+    }
+
+    private static ConnectorAnchor InferAnchor(PixelBox box, PixelPoint toward)
+    {
+        var centerX = box.X + box.Width / 2;
+        var centerY = box.Y + box.Height / 2;
+        var dx = toward.X - centerX;
+        var dy = toward.Y - centerY;
+        if (Math.Abs(dx) >= Math.Abs(dy))
+            return new ConnectorAnchor(
+                "normalized",
+                X: dx >= 0 ? 1 : 0,
+                Y: Math.Clamp((toward.Y - box.Y) / box.Height, 0, 1));
+        return new ConnectorAnchor(
+            "normalized",
+            X: Math.Clamp((toward.X - box.X) / box.Width, 0, 1),
+            Y: dy >= 0 ? 1 : 0);
     }
 
     private static string? MapArrow(string? arrow) => arrow switch

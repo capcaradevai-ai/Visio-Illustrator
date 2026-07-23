@@ -72,3 +72,25 @@ test("logical regions are measured independently from the global canvas", async 
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+test("file comparison normalizes renderer dimensions and reports the original canvas error", async () => {
+  const reference = image(80, 40, (pixels, width) => {
+    for (let y = 10; y < 30; y += 1) for (let x = 20; x < 60; x += 1) setPixel(pixels, width, x, y, [20, 80, 150]);
+  });
+  const candidate = image(160, 80, (pixels, width) => {
+    for (let y = 20; y < 60; y += 1) for (let x = 40; x < 120; x += 1) setPixel(pixels, width, x, y, [20, 80, 150]);
+  });
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "visio-resize-"));
+  try {
+    const referencePath = path.join(directory, "reference.png");
+    const candidatePath = path.join(directory, "candidate.png");
+    await Promise.all([fs.writeFile(referencePath, reference), fs.writeFile(candidatePath, candidate)]);
+    const metrics = await comparePngFiles(referencePath, candidatePath);
+    assert.equal(metrics.canvas.normalized, true);
+    assert.equal(metrics.canvas.candidate_width, 160);
+    assert.equal(metrics.canvas.aspect_ratio_error, 0);
+    assert.ok(metrics.edge_f1 > 0.9);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});

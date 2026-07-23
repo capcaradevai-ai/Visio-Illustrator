@@ -4,6 +4,8 @@ public interface IShapeAccessor
 {
     IReadOnlyList<IShapeHandle> EnumerateBoundPageShapesRecursively();
 
+    IShapeHandle? FindByUniversalName(string nameU);
+
     string? ReadSemanticId(IShapeHandle shape);
 
     void WriteSemanticId(IShapeHandle shape, string semanticId);

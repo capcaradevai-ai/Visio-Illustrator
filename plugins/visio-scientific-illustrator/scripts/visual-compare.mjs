@@ -6,12 +6,19 @@ export async function comparePngFiles(referencePath, candidatePath, heatmapPath,
     fs.readFile(referencePath),
     fs.readFile(candidatePath),
   ]);
-  const result = comparePngBuffers(referenceBuffer, candidateBuffer);
+  const reference = decodePng(referenceBuffer);
+  const rawCandidate = decodePng(candidateBuffer);
+  const normalized = reference.width !== rawCandidate.width || reference.height !== rawCandidate.height;
+  const candidate = normalized
+    ? resizeImage(rawCandidate, reference.width, reference.height)
+    : rawCandidate;
+  const normalizedCandidateBuffer = normalized
+    ? encodePng(candidate.width, candidate.height, candidate.data)
+    : candidateBuffer;
+  const result = comparePngBuffers(referenceBuffer, normalizedCandidateBuffer);
   if (heatmapPath) {
     await fs.writeFile(heatmapPath, encodePng(result.width, result.height, result.heatmap));
   }
-  const reference = decodePng(referenceBuffer);
-  const candidate = decodePng(candidateBuffer);
   const regionMetrics = regions.map((region) => {
     validateRegion(region, reference.width, reference.height);
     const referenceCrop = crop(reference, region);
@@ -25,11 +32,45 @@ export async function comparePngFiles(referencePath, candidatePath, heatmapPath,
   });
   const { heatmap, ...metrics } = result;
   return {
-    canvas: { aspect_ratio_error: 0 },
+    canvas: {
+      reference_width: reference.width,
+      reference_height: reference.height,
+      candidate_width: rawCandidate.width,
+      candidate_height: rawCandidate.height,
+      aspect_ratio_error: Math.abs(
+        reference.width / reference.height - rawCandidate.width / rawCandidate.height,
+      ) / (reference.width / reference.height),
+      normalized,
+    },
     ...metrics,
     regions: regionMetrics,
     heatmap_path: heatmapPath ?? null,
   };
+}
+
+function resizeImage(image, width, height) {
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    const sourceY = Math.min(image.height - 1, Math.max(0, (y + 0.5) * image.height / height - 0.5));
+    const y0 = Math.floor(sourceY);
+    const y1 = Math.min(image.height - 1, y0 + 1);
+    const wy = sourceY - y0;
+    for (let x = 0; x < width; x += 1) {
+      const sourceX = Math.min(image.width - 1, Math.max(0, (x + 0.5) * image.width / width - 0.5));
+      const x0 = Math.floor(sourceX);
+      const x1 = Math.min(image.width - 1, x0 + 1);
+      const wx = sourceX - x0;
+      const target = (y * width + x) * 4;
+      for (let channel = 0; channel < 4; channel += 1) {
+        const top = image.data[(y0 * image.width + x0) * 4 + channel] * (1 - wx)
+          + image.data[(y0 * image.width + x1) * 4 + channel] * wx;
+        const bottom = image.data[(y1 * image.width + x0) * 4 + channel] * (1 - wx)
+          + image.data[(y1 * image.width + x1) * 4 + channel] * wx;
+        data[target + channel] = Math.round(top * (1 - wy) + bottom * wy);
+      }
+    }
+  }
+  return { width, height, data };
 }
 
 export function comparePngBuffers(referenceBuffer, candidateBuffer) {

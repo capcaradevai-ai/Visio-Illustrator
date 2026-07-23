@@ -34,13 +34,31 @@ internal sealed class FakeShapeAccessor : IShapeAccessor
 
     public static FakeShapeAccessor WithShapes(params FakeShape[] shapes) => new(shapes);
 
-    public IReadOnlyList<IShapeHandle> EnumerateBoundPageShapesRecursively() =>
-        _shapes.Cast<IShapeHandle>().ToArray();
+    public int EnumerationCount { get; private set; }
+
+    public int UniversalNameLookupCount { get; private set; }
+
+    public IReadOnlyList<IShapeHandle> EnumerateBoundPageShapesRecursively()
+    {
+        EnumerationCount++;
+        return _shapes.Cast<IShapeHandle>().ToArray();
+    }
+
+    public IShapeHandle? FindByUniversalName(string nameU)
+    {
+        UniversalNameLookupCount++;
+        return _shapes.FirstOrDefault(shape => shape.NameU == nameU);
+    }
 
     public string? ReadSemanticId(IShapeHandle shape) => shape.UserCodexId;
 
     public void WriteSemanticId(IShapeHandle shape, string semanticId) =>
         shape.UserCodexId = semanticId;
 
-    public void SetUniversalName(IShapeHandle shape, string nameU) => shape.NameU = nameU;
+    public void SetUniversalName(IShapeHandle shape, string nameU)
+    {
+        shape.NameU = _shapes.Any(item => item.Id != shape.Id && item.NameU == nameU)
+            ? $"{nameU}.2"
+            : nameU;
+    }
 }

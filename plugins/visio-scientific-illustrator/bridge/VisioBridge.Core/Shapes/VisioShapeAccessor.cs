@@ -6,6 +6,7 @@ namespace VisioBridge.Core.Shapes;
 
 internal sealed class VisioShapeAccessor : IShapeAccessor
 {
+    private const int ShapeNameNotFound = unchecked((int)0x86DB0904);
     private readonly Func<Visio.Page> _pageProvider;
 
     public VisioShapeAccessor(Func<Visio.Page> pageProvider)
@@ -25,6 +26,57 @@ internal sealed class VisioShapeAccessor : IShapeAccessor
         {
             foreach (var shape in result) shape.Dispose();
             throw;
+        }
+    }
+
+    public IShapeHandle? FindByUniversalName(string nameU)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(nameU);
+        var page = _pageProvider();
+        var shapes = page.Shapes;
+        try
+        {
+            var direct = TryItemU(shapes, nameU);
+            if (direct is not null) return new VisioShapeHandle(direct);
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(shapes);
+        }
+
+        Visio.Selection? groups = null;
+        try
+        {
+            groups = page.CreateSelection(
+                Visio.VisSelectionTypes.visSelTypeByType,
+                Visio.VisSelectMode.visSelModeSkipSuper,
+                (short)Visio.VisTypeSelectionTypes.visTypeSelGroup);
+            for (var index = 1; index <= groups.Count; index++)
+            {
+                var group = groups[index];
+                try
+                {
+                    var children = group.Shapes;
+                    try
+                    {
+                        var nested = FindInCollection(children, nameU);
+                        if (nested is not null) return new VisioShapeHandle(nested);
+                    }
+                    finally
+                    {
+                        Marshal.ReleaseComObject(children);
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(group);
+                }
+            }
+            return null;
+        }
+        finally
+        {
+            if (groups is not null) Marshal.ReleaseComObject(groups);
         }
     }
 
@@ -53,6 +105,52 @@ internal sealed class VisioShapeAccessor : IShapeAccessor
         finally
         {
             Marshal.ReleaseComObject(shapes);
+        }
+    }
+
+    private static Visio.Shape? FindInCollection(Visio.Shapes shapes, string nameU)
+    {
+        var direct = TryItemU(shapes, nameU);
+        if (direct is not null) return direct;
+
+        for (var index = 1; index <= shapes.Count; index++)
+        {
+            var shape = shapes[index];
+            try
+            {
+                if (shape.Type != (short)Visio.VisShapeTypes.visTypeGroup) continue;
+                var children = shape.Shapes;
+                try
+                {
+                    var nested = FindInCollection(children, nameU);
+                    if (nested is not null) return nested;
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(children);
+                }
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(shape);
+            }
+        }
+        return null;
+    }
+
+    private static Visio.Shape? TryItemU(Visio.Shapes shapes, string nameU)
+    {
+        try
+        {
+            return shapes.ItemU[nameU];
+        }
+        catch (COMException error) when (error.HResult == ShapeNameNotFound)
+        {
+            return null;
+        }
+        catch (COMException error)
+        {
+            throw Interop.ComExceptionTranslator.Translate(error);
         }
     }
 }

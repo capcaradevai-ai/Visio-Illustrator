@@ -25,6 +25,8 @@ public sealed class VisioSession : IVisioSession
     private Visio.Page? _page;
     private CanvasSpec? _canvas;
     private MasterCatalog? _masterCatalog;
+    private VisioShapeAccessor? _shapeAccessor;
+    private ShapeRepository? _shapeRepository;
     private int? _boundPageId;
     private string? _boundPageNameU;
     private volatile SessionState _state = SessionState.Stopped;
@@ -134,16 +136,31 @@ public sealed class VisioSession : IVisioSession
             () => CreateConnectorService().Add(command));
 
     public PageInspectionResult Inspect(int maxShapes)
-        => InvokeReady(() => CreateInspector().Inspect(maxShapes));
+        => InvokeReady(() =>
+        {
+            var result = CreateInspector().Inspect(maxShapes);
+            GetShapeRepository().RebuildIndex();
+            return result;
+        });
 
     public ShapeSnapshot UpdateShape(UpdateShapeCommand command) =>
         ExecuteUndoable("Codex update shape", () => CreateShapeEditor().Update(command));
 
     public DeleteResult DeleteShape(DeleteShapeCommand command) =>
-        ExecuteUndoable("Codex delete shape", () => CreateShapeEditor().Delete(command));
+        ExecuteUndoable("Codex delete shape", () =>
+        {
+            var result = CreateShapeEditor().Delete(command);
+            GetShapeRepository().RebuildIndex();
+            return result;
+        });
 
     public ClearResult Clear(bool confirm) =>
-        ExecuteUndoable("Codex clear page", () => CreateShapeEditor().Clear(confirm));
+        ExecuteUndoable("Codex clear page", () =>
+        {
+            var result = CreateShapeEditor().Clear(confirm);
+            GetShapeRepository().RebuildIndex();
+            return result;
+        });
 
     public PreviewResult ExportPreview(int widthPx)
         => InvokeReady(() => new PreviewExporter(
@@ -196,7 +213,7 @@ public sealed class VisioSession : IVisioSession
     public double ReadCellResultForIntegrationTest(string semanticId, string cellName)
         => InvokeReady(() =>
         {
-            var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+            var repository = GetShapeRepository();
             using var handle = repository.Resolve(semanticId);
             var shape = ((VisioShapeHandle)handle).Shape;
             if (shape.CellExistsU[cellName, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
@@ -217,7 +234,7 @@ public sealed class VisioSession : IVisioSession
     public int ReadGroupChildCountForIntegrationTest(string semanticId)
         => InvokeReady(() =>
         {
-            var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+            var repository = GetShapeRepository();
             using var handle = repository.Resolve(semanticId);
             var children = ((VisioShapeHandle)handle).Shape.Shapes;
             try { return children.Count; }
@@ -248,7 +265,12 @@ public sealed class VisioSession : IVisioSession
     public UngroupMutationResult UngroupShape(UngroupShapeCommand command) =>
         ExecuteUndoable(
             "Codex ungroup shape",
-            () => CreateGroupingService().Ungroup(command));
+            () =>
+            {
+                var result = CreateGroupingService().Ungroup(command);
+                GetShapeRepository().RebuildIndex();
+                return result;
+            });
 
     public ContainerMutationResult AddToContainer(AddToContainerCommand command) =>
         ExecuteUndoable(
@@ -317,7 +339,11 @@ public sealed class VisioSession : IVisioSession
     });
 
     public void UndoLastForIntegrationTest()
-        => InvokeReady(() => RequireReadyApplication().Undo());
+        => InvokeReady(() =>
+        {
+            RequireReadyApplication().Undo();
+            _shapeRepository?.RebuildIndex();
+        });
 
     public int AddPageForIntegrationTest(
         string pageName,
@@ -383,7 +409,7 @@ public sealed class VisioSession : IVisioSession
                     BridgeErrorCodes.InvalidArgument,
                     "测试连接点比例必须在 0–1 范围内。");
             }
-            var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+            var repository = GetShapeRepository();
             using var handle = repository.Resolve(semanticId);
             var shape = ((VisioShapeHandle)handle).Shape;
             var section = (short)Visio.VisSectionIndices.visSectionConnectionPts;
@@ -716,6 +742,8 @@ public sealed class VisioSession : IVisioSession
         CanvasSpec canvas,
         bool maximize)
     {
+        _shapeAccessor = null;
+        _shapeRepository = null;
         _boundPageId = _page!.ID;
         _boundPageNameU = _page.NameU;
         _canvas = canvas;
@@ -824,6 +852,8 @@ public sealed class VisioSession : IVisioSession
         }
 
         _document.Close();
+        _shapeRepository = null;
+        _shapeAccessor = null;
         ReleaseCom(ref _page);
         ReleaseCom(ref _document);
         _boundPageId = null;
@@ -903,8 +933,7 @@ public sealed class VisioSession : IVisioSession
                 BridgeErrorCodes.SessionNotReady,
                 "Visio 会话尚未准备好。");
         }
-        var accessor = new VisioShapeAccessor(() => _page!);
-        var repository = new ShapeRepository(accessor);
+        var repository = GetShapeRepository();
         var geometry = new GeometryConverter(_canvas);
         return new ShapeFactory(
             _page,
@@ -918,11 +947,10 @@ public sealed class VisioSession : IVisioSession
     {
         RequireReadyApplication();
         var geometry = new GeometryConverter(_canvas!);
-        var accessor = new VisioShapeAccessor(() => _page!);
         return new FreeformBuilder(
             _page!,
             geometry,
-            new ShapeRepository(accessor),
+            GetShapeRepository(),
             new PageInspector(_document!, _page!, geometry));
     }
 
@@ -934,10 +962,9 @@ public sealed class VisioSession : IVisioSession
                 BridgeErrorCodes.SessionNotReady,
                 "Visio 会话尚未准备好。");
         }
-        var accessor = new VisioShapeAccessor(() => _page!);
         var geometry = new GeometryConverter(_canvas!);
         return new ConnectorService(
-            new ShapeRepository(accessor),
+            GetShapeRepository(),
             new VisioConnectorAdapter(_page, _application!, geometry));
     }
 
@@ -954,8 +981,7 @@ public sealed class VisioSession : IVisioSession
     {
         RequireReadyApplication();
         var geometry = new GeometryConverter(_canvas!);
-        var accessor = new VisioShapeAccessor(() => _page!);
-        var repository = new ShapeRepository(accessor);
+        var repository = GetShapeRepository();
         var inspector = new PageInspector(_document!, _page!, geometry);
         return new ShapeEditor(new VisioShapeEditorAdapter(
             _page!,
@@ -978,17 +1004,16 @@ public sealed class VisioSession : IVisioSession
     private VisioGroupingService CreateGroupingService()
     {
         RequireReadyApplication();
-        var accessor = new VisioShapeAccessor(() => _page!);
         return new VisioGroupingService(
             _page!,
-            new ShapeRepository(accessor));
+            GetShapeRepository());
     }
 
     private LayoutService CreateLayoutService()
     {
         RequireReadyApplication();
         var geometry = new GeometryConverter(_canvas!);
-        var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+        var repository = GetShapeRepository();
         var inspector = new PageInspector(_document!, _page!, geometry);
         return new LayoutService(_page!, repository, geometry, inspector);
     }
@@ -997,7 +1022,7 @@ public sealed class VisioSession : IVisioSession
     {
         RequireReadyApplication();
         var geometry = new GeometryConverter(_canvas!);
-        var repository = new ShapeRepository(new VisioShapeAccessor(() => _page!));
+        var repository = GetShapeRepository();
         var inspector = new PageInspector(_document!, _page!, geometry);
         var shapeFactory = new ShapeFactory(
             _page!, geometry, repository, GetMasterCatalog(), inspector);
@@ -1010,8 +1035,14 @@ public sealed class VisioSession : IVisioSession
     private ShapeSheetService CreateShapeSheetService()
     {
         RequireReadyApplication();
-        return new ShapeSheetService(
-            new ShapeRepository(new VisioShapeAccessor(() => _page!)));
+        return new ShapeSheetService(GetShapeRepository());
+    }
+
+    private ShapeRepository GetShapeRepository()
+    {
+        RequireReadyApplication();
+        _shapeAccessor ??= new VisioShapeAccessor(() => _page!);
+        return _shapeRepository ??= new ShapeRepository(_shapeAccessor);
     }
 
     private EnsureLayersResult EnsureLayersCore(EnsureLayersCommand command)
@@ -1045,13 +1076,35 @@ public sealed class VisioSession : IVisioSession
 
     private T ExecuteUndoable<T>(string name, Func<T> operation)
     {
-        return InvokeReady(() =>
+        try
         {
-            using var scope = new UndoScope(RequireReadyApplication(), name);
-            var result = operation();
-            scope.Complete();
-            return result;
-        });
+            return InvokeReady(() =>
+            {
+                using var scope = new UndoScope(RequireReadyApplication(), name);
+                var result = operation();
+                scope.Complete();
+                return result;
+            });
+        }
+        catch (Exception operationError)
+        {
+            if (_state == SessionState.Ready && _shapeRepository is not null)
+            {
+                try
+                {
+                    InvokeReady(_shapeRepository.RebuildIndex);
+                }
+                catch (Exception rebuildError)
+                {
+                    throw new AggregateException(
+                        "操作回滚后重建语义 ID 索引失败。",
+                        operationError,
+                        rebuildError);
+                }
+            }
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(operationError).Throw();
+            throw new InvalidOperationException("不可达代码。");
+        }
     }
 
     private Visio.InvisibleApp RequireReadyApplication()

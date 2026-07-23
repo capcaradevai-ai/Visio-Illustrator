@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Text.Json;
 using VisioBridge.Contracts;
 using VisioBridge.Core;
@@ -16,10 +17,15 @@ if (mode is null)
 }
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
+Console.InputEncoding = System.Text.Encoding.UTF8;
+var bridgeVersion = Assembly.GetExecutingAssembly()
+    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+    .InformationalVersion.Split('+')[0]
+    ?? throw new InvalidOperationException("Bridge informational version is missing.");
 Console.WriteLine(JsonSerializer.Serialize(
     new BridgeReady(
         "ready",
-        "0.1.0",
+        bridgeVersion,
         Environment.ProcessId,
         RuntimeInformation.ProcessArchitecture.ToString()),
     ProtocolJson.Options));

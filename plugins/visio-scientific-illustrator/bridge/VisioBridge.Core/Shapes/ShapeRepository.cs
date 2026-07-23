@@ -6,6 +6,7 @@ namespace VisioBridge.Core.Shapes;
 public sealed class ShapeRepository
 {
     private readonly IShapeAccessor _accessor;
+    private HashSet<string>? _semanticIds;
 
     public ShapeRepository(IShapeAccessor accessor)
     {
@@ -15,62 +16,67 @@ public sealed class ShapeRepository
     public IShapeHandle Resolve(string semanticId)
     {
         ValidateSemanticId(semanticId);
-        var shapes = _accessor.EnumerateBoundPageShapesRecursively();
-        var matches = new List<IShapeHandle>();
-        foreach (var shape in shapes)
-        {
-            if (string.Equals(
-                _accessor.ReadSemanticId(shape),
-                semanticId,
-                StringComparison.Ordinal))
-            {
-                matches.Add(shape);
-            }
-            else
-            {
-                shape.Dispose();
-            }
-        }
-
-        if (matches.Count == 1) return matches[0];
-        foreach (var match in matches) match.Dispose();
-        if (matches.Count == 0)
+        EnsureIndexed();
+        if (!_semanticIds!.Contains(semanticId))
         {
             throw new BridgeCommandException(
                 BridgeErrorCodes.ShapeNotFound,
                 $"未找到 semantic_id: {semanticId}");
         }
-        throw Duplicate(semanticId);
+        var shape = _accessor.FindByUniversalName(ToUniversalName(semanticId));
+        if (shape is null)
+        {
+            throw new BridgeCommandException(
+                BridgeErrorCodes.ShapeNotFound,
+                $"未找到 semantic_id: {semanticId}");
+        }
+        if (!string.Equals(_accessor.ReadSemanticId(shape), semanticId, StringComparison.Ordinal))
+        {
+            shape.Dispose();
+            throw Duplicate(semanticId);
+        }
+        return shape;
     }
 
     public void Register(IShapeHandle shape, string semanticId)
     {
         ArgumentNullException.ThrowIfNull(shape);
         ValidateSemanticId(semanticId);
+        EnsureIndexed();
+        if (_semanticIds!.Contains(semanticId)) throw Duplicate(semanticId);
         var nameU = ToUniversalName(semanticId);
+        _accessor.WriteSemanticId(shape, semanticId);
+        _accessor.SetUniversalName(shape, nameU);
+        if (!string.Equals(shape.NameU, nameU, StringComparison.Ordinal))
+        {
+            throw Duplicate(semanticId);
+        }
+        _semanticIds.Add(semanticId);
+    }
+
+    public void RebuildIndex()
+    {
+        var semanticIds = new HashSet<string>(StringComparer.Ordinal);
         var shapes = _accessor.EnumerateBoundPageShapesRecursively();
         try
         {
-            foreach (var existing in shapes)
+            foreach (var shape in shapes)
             {
-                if (existing.Id == shape.Id) continue;
-                if (string.Equals(
-                        _accessor.ReadSemanticId(existing),
-                        semanticId,
-                        StringComparison.Ordinal)
-                    || string.Equals(existing.NameU, nameU, StringComparison.Ordinal))
-                {
-                    throw Duplicate(semanticId);
-                }
+                var semanticId = _accessor.ReadSemanticId(shape);
+                if (string.IsNullOrEmpty(semanticId)) continue;
+                if (!semanticIds.Add(semanticId)) throw Duplicate(semanticId);
             }
         }
         finally
         {
-            foreach (var existing in shapes) existing.Dispose();
+            foreach (var shape in shapes) shape.Dispose();
         }
+        _semanticIds = semanticIds;
+    }
 
-        _accessor.WriteSemanticId(shape, semanticId);
-        _accessor.SetUniversalName(shape, nameU);
+    private void EnsureIndexed()
+    {
+        if (_semanticIds is null) RebuildIndex();
     }
 
     public static string ToUniversalName(string semanticId)
