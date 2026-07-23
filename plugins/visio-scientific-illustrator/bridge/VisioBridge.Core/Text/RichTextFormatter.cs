@@ -259,19 +259,19 @@ internal static class RichTextFormatter
 
     private static void ShrinkTextToFit(Visio.Shape shape, double minimumFontSizePt)
     {
-        var textWidth = Math.Max(0.001, ReadResultIU(shape, "TxtWidth")
-            - ReadResultIU(shape, "LeftMargin") - ReadResultIU(shape, "RightMargin"));
-        var textHeight = Math.Max(0.001, ReadResultIU(shape, "TxtHeight"));
-        for (var iteration = 0; iteration < 3; iteration++)
-        {
-            var measuredWidth = MeasureText(shape, "TEXTWIDTH(TheText)");
-            var measuredHeight = MeasureText(
-                shape,
-                $"TEXTHEIGHT(TheText,{textWidth.ToString("R", CultureInfo.InvariantCulture)} in)");
-            var scale = Math.Min(1, Math.Min(textWidth / Math.Max(0.001, measuredWidth), textHeight / Math.Max(0.001, measuredHeight)));
-            if (scale >= 0.995) return;
-            if (!ScaleCharacterRows(shape, scale, minimumFontSizePt)) return;
-        }
+        var explicitTextWidth = ReadResultIU(shape, "TxtWidth");
+        var textWidth = Math.Max(0.001,
+            explicitTextWidth > 0 ? explicitTextWidth : ReadResultIU(shape, "Width"));
+        var textHeight = Math.Max(0.001, ReadResultIU(shape, "Height"));
+        var measuredWidth = MeasureText(shape, "TEXTWIDTH(TheText)");
+        var widthScale = Math.Min(1, textWidth / Math.Max(0.001, measuredWidth));
+        if (widthScale < 0.995) ScaleCharacterRows(shape, widthScale, minimumFontSizePt);
+
+        var measuredHeight = MeasureText(
+            shape,
+            $"TEXTHEIGHT(TheText,{textWidth.ToString("R", CultureInfo.InvariantCulture)} in)");
+        var heightScale = Math.Min(1, textHeight / Math.Max(0.001, measuredHeight));
+        if (heightScale < 0.995) ScaleCharacterRows(shape, heightScale, minimumFontSizePt);
     }
 
     private static double MeasureText(Visio.Shape shape, string formula)

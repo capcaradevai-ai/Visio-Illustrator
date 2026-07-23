@@ -146,7 +146,9 @@ public sealed class ShapeIntegrationTests
             new PixelBox(100, 100, 240, 80),
             RichText: new RichText(
                 "Fractional",
-                Runs: [new TextRun(0, 10, FontSizePt: 10.5)])));
+                Runs: [new TextRun(0, 10, FontSizePt: 10.5)],
+                Fit: "shrink_text",
+                MinimumFontSizePt: 5)));
         fixture.AddShape(new AddShapeCommand(
             "shrink",
             "text",
@@ -161,7 +163,7 @@ public sealed class ShapeIntegrationTests
         var shrink = ReadPoints(fixture.GetCells(new GetCellsCommand("shrink", ["Char.Size"])));
 
         Assert.Equal(10.5, fractional, 3);
-        Assert.InRange(shrink, 5, 11.99);
+        Assert.InRange(shrink, 8, 11.99);
     }
 
     [Trait("Category", "VisioIntegration")]
