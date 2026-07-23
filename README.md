@@ -1,5 +1,7 @@
 # Visio Scientific Illustrator
 
+[English](README.en.md) | 简体中文
+
 Visio Scientific Illustrator 是一个仅支持 Windows 的 Codex 插件。它让 Codex 通过 Microsoft Visio 的 COM 自动化接口，在用户可见的 Visio 窗口中逐步绘制科研示意图，并交付可继续编辑的 `.vsdx` 文件，而不是先生成静态图片或文件包再打开。
 
 绘制得到的文字、二维形状、图片、分组、容器和一维连接线都是真实的 Visio 对象；连接线端点使用 `GlueTo` 粘附到目标形状。每个受控对象都使用 `User.CodexId` 保存稳定语义 ID，便于后续检查和局部修改。
@@ -48,12 +50,11 @@ npm run build:bridge
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location).Path
 ```
 
-如果 Codex 桌面版位于受保护的 WindowsApps 目录，当前 PowerShell 无法直接执行自动发现到的 `codex.exe`，可显式传入可执行文件的绝对路径：
+如果 Codex 桌面版位于受保护的 WindowsApps 目录，当前 PowerShell 可能无法直接执行自动发现到的 `codex.exe`。此时可使用官方 Codex CLI 的临时 npm 包注册 Marketplace 并安装插件：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 `
-  -InstallDir (Get-Location).Path `
-  -CodexExecutable "C:\Users\<用户名>\.codex\.sandbox-bin\codex.exe"
+npx --yes @openai/codex@latest plugin marketplace add (Get-Location).Path
+npx --yes @openai/codex@latest plugin add visio-scientific-illustrator@visio-scientific-tools
 ```
 
 安装器会检查 Windows、Node.js 版本、Visio COM 注册、Codex CLI、Marketplace 元数据和 Bridge 可执行文件，然后注册本地 Marketplace 并安装：
