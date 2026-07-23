@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Globalization;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Shapes;
 using VisioBridge.Core.Styling;
@@ -148,7 +149,7 @@ internal static class RichTextFormatter
             if (run.Position != 0)
                 characters.set_CharProps((short)Visio.VisCellIndices.visCharacterPos, (short)run.Position);
             if (run.FontSizePt is not null)
-                characters.set_CharProps((short)Visio.VisCellIndices.visCharacterSize, (short)Math.Round(run.FontSizePt.Value));
+                ApplyRunFontSize(shape, characters, run.FontSizePt.Value);
             if (run.Strikethrough == true)
                 characters.set_CharProps((short)Visio.VisCellIndices.visCharacterStrikethru, 1);
             if (run.FontFamily is not null) ApplyFont(shape, characters, run.FontFamily);
@@ -157,6 +158,26 @@ internal static class RichTextFormatter
         finally
         {
             if (characters is not null) Marshal.FinalReleaseComObject(characters);
+        }
+    }
+
+    private static void ApplyRunFontSize(Visio.Shape shape, Visio.Characters characters, double sizePt)
+    {
+        var row = characters.get_CharPropsRow((short)Visio.VisCharsBias.visBiasLetVisioChoose);
+        if (row < 0)
+            throw new BridgeCommandException(BridgeErrorCodes.InvalidStyle, "无法为跨格式文本区间设置字号。");
+        Visio.Cell? cell = null;
+        try
+        {
+            cell = shape.CellsSRC[
+                (short)Visio.VisSectionIndices.visSectionCharacter,
+                (short)row,
+                (short)Visio.VisCellIndices.visCharacterSize];
+            cell.FormulaU = ShapeSheetValue.Points(sizePt);
+        }
+        finally
+        {
+            if (cell is not null) Marshal.FinalReleaseComObject(cell);
         }
     }
 
@@ -229,6 +250,85 @@ internal static class RichTextFormatter
         {
             StyleMapper.SetFormula(shape, "Width", "TEXTWIDTH(TheText)+LeftMargin+RightMargin");
             StyleMapper.SetFormula(shape, "Height", "TEXTHEIGHT(TheText,Width)+TopMargin+BottomMargin");
+        }
+        else if (richText.Fit == "shrink_text")
+        {
+            ShrinkTextToFit(shape, richText.MinimumFontSizePt ?? 5);
+        }
+    }
+
+    private static void ShrinkTextToFit(Visio.Shape shape, double minimumFontSizePt)
+    {
+        var textWidth = Math.Max(0.001, ReadResultIU(shape, "TxtWidth")
+            - ReadResultIU(shape, "LeftMargin") - ReadResultIU(shape, "RightMargin"));
+        var textHeight = Math.Max(0.001, ReadResultIU(shape, "TxtHeight"));
+        for (var iteration = 0; iteration < 3; iteration++)
+        {
+            var measuredWidth = MeasureText(shape, "TEXTWIDTH(TheText)");
+            var measuredHeight = MeasureText(
+                shape,
+                $"TEXTHEIGHT(TheText,{textWidth.ToString("R", CultureInfo.InvariantCulture)} in)");
+            var scale = Math.Min(1, Math.Min(textWidth / Math.Max(0.001, measuredWidth), textHeight / Math.Max(0.001, measuredHeight)));
+            if (scale >= 0.995) return;
+            if (!ScaleCharacterRows(shape, scale, minimumFontSizePt)) return;
+        }
+    }
+
+    private static double MeasureText(Visio.Shape shape, string formula)
+    {
+        var section = (short)Visio.VisSectionIndices.visSectionUser;
+        if (shape.SectionExists[section, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
+            shape.AddSection(section);
+        var row = shape.AddNamedRow(section, "CodexTextMeasure", (short)Visio.VisRowTags.visTagDefault);
+        Visio.Cell? cell = null;
+        try
+        {
+            cell = shape.CellsU["User.CodexTextMeasure"];
+            cell.FormulaU = formula;
+            return cell.ResultIU;
+        }
+        finally
+        {
+            if (cell is not null) Marshal.FinalReleaseComObject(cell);
+            shape.DeleteRow(section, row);
+        }
+    }
+
+    private static bool ScaleCharacterRows(Visio.Shape shape, double scale, double minimumFontSizePt)
+    {
+        var section = (short)Visio.VisSectionIndices.visSectionCharacter;
+        var changed = false;
+        for (short row = 0; row < shape.RowCount[section]; row++)
+        {
+            Visio.Cell? cell = null;
+            try
+            {
+                cell = shape.CellsSRC[section, row, (short)Visio.VisCellIndices.visCharacterSize];
+                var current = cell.get_Result(Visio.VisUnitCodes.visPoints);
+                var next = Math.Max(minimumFontSizePt, current * scale);
+                if (next >= current - 0.001) continue;
+                cell.FormulaU = ShapeSheetValue.Points(next);
+                changed = true;
+            }
+            finally
+            {
+                if (cell is not null) Marshal.FinalReleaseComObject(cell);
+            }
+        }
+        return changed;
+    }
+
+    private static double ReadResultIU(Visio.Shape shape, string cellName)
+    {
+        Visio.Cell? cell = null;
+        try
+        {
+            cell = shape.CellsU[cellName];
+            return cell.ResultIU;
+        }
+        finally
+        {
+            if (cell is not null) Marshal.FinalReleaseComObject(cell);
         }
     }
 }

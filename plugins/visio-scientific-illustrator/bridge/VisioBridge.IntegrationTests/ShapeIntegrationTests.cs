@@ -1,5 +1,6 @@
 using VisioBridge.Contracts;
 using System.IO.Compression;
+using System.Globalization;
 using System.Xml.Linq;
 
 namespace VisioBridge.IntegrationTests;
@@ -136,6 +137,35 @@ public sealed class ShapeIntegrationTests
 
     [Trait("Category", "VisioIntegration")]
     [Fact]
+    public void Rich_text_preserves_fractional_points_and_shrink_text_reduces_overflow()
+    {
+        using var fixture = VisioFixture.StartVisible();
+        fixture.AddShape(new AddShapeCommand(
+            "fractional",
+            "text",
+            new PixelBox(100, 100, 240, 80),
+            RichText: new RichText(
+                "Fractional",
+                Runs: [new TextRun(0, 10, FontSizePt: 10.5)])));
+        fixture.AddShape(new AddShapeCommand(
+            "shrink",
+            "text",
+            new PixelBox(400, 100, 56, 45),
+            RichText: new RichText(
+                "Dynamic\nresidual",
+                Runs: [new TextRun(0, 16, FontSizePt: 12)],
+                Fit: "shrink_text",
+                MinimumFontSizePt: 5)));
+
+        var fractional = ReadPoints(fixture.GetCells(new GetCellsCommand("fractional", ["Char.Size"])));
+        var shrink = ReadPoints(fixture.GetCells(new GetCellsCommand("shrink", ["Char.Size"])));
+
+        Assert.Equal(10.5, fractional, 3);
+        Assert.InRange(shrink, 5, 11.99);
+    }
+
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
     public void Duplicate_semantic_id_returns_stable_error_without_a_partial_shape()
     {
         using var fixture = VisioFixture.StartVisible();
@@ -187,4 +217,10 @@ public sealed class ShapeIntegrationTests
         new ScenePathCommand("C", 250, y, 70, y - 70, 160, y + 70),
         new ScenePathCommand("C", 500, y, 340, y - 70, 430, y + 70),
     ]);
+
+    private static double ReadPoints(ShapeSheetCellsResult result)
+    {
+        var value = Assert.Single(result.Cells).ResultUniversal.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
+        return double.Parse(value, CultureInfo.InvariantCulture);
+    }
 }
