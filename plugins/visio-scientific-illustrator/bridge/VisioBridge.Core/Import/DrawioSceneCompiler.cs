@@ -25,7 +25,7 @@ public sealed class DrawioSceneCompiler
             return CompileGraph(Path.GetFullPath(command.InputPath), diagramName, graph);
         }
         catch (BridgeCommandException) { throw; }
-        catch (Exception error) when (error is System.Xml.XmlException or FormatException or InvalidDataException)
+        catch (Exception error) when (error is System.Xml.XmlException or FormatException or InvalidDataException or ArgumentException)
         {
             throw InvalidDocument("无法解析 draw.io 文档。", error);
         }
@@ -299,8 +299,8 @@ public sealed class DrawioSceneCompiler
         {
             try
             {
-                var decoded = DecodeHtml(value);
-                var normalized = Regex.Replace(decoded, "<br\\s*/?>", "<br/>", RegexOptions.IgnoreCase);
+                var normalizedEntities = NormalizeHtmlEntitiesForXml(value);
+                var normalized = Regex.Replace(normalizedEntities, "<br\\s*/?>", "<br/>", RegexOptions.IgnoreCase);
                 var root = XDocument.Parse($"<root>{normalized}</root>").Root!;
                 foreach (var node in root.Nodes()) AppendInline(node, baseline, text, runs);
             }
@@ -422,6 +422,14 @@ public sealed class DrawioSceneCompiler
 
     private static string DecodeHtml(string value) => WebUtility.HtmlDecode(
         value.Replace("&vellip;", "\u22EE", StringComparison.OrdinalIgnoreCase));
+
+    private static string NormalizeHtmlEntitiesForXml(string value) => Regex.Replace(
+        value,
+        "&(?<name>[A-Za-z][A-Za-z0-9]+);",
+        match => match.Groups["name"].Value.ToLowerInvariant() is "amp" or "lt" or "gt" or "quot" or "apos"
+            ? match.Value
+            : WebUtility.HtmlDecode(match.Value),
+        RegexOptions.CultureInvariant);
 
     private static string NormalizeVisioText(string value) =>
         Regex.Replace(value, "\u00B7{3,}", match => new string('.', match.Length));

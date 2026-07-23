@@ -72,6 +72,43 @@ public sealed class DrawioSceneCompilerTests
     }
 
     [Fact]
+    public void Duplicate_mxcell_ids_return_stable_invalid_document_error()
+    {
+        using var directory = TestDirectory.Create();
+        var path = directory.WriteFile("duplicate.drawio", """
+            <mxGraphModel pageWidth="400" pageHeight="200"><root>
+              <mxCell id="0"/><mxCell id="1" parent="0"/>
+              <mxCell id="same" parent="1" vertex="1"><mxGeometry x="10" y="10" width="80" height="40" as="geometry"/></mxCell>
+              <mxCell id="same" parent="1" vertex="1"><mxGeometry x="100" y="10" width="80" height="40" as="geometry"/></mxCell>
+            </root></mxGraphModel>
+            """);
+
+        var error = Assert.Throws<VisioBridge.Core.BridgeCommandException>(() =>
+            new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path)));
+
+        Assert.Equal(VisioBridge.Core.BridgeErrorCodes.InvalidDrawioDocument, error.Code);
+    }
+
+    [Fact]
+    public void Xml_safe_html_entities_preserve_inline_formatting()
+    {
+        using var directory = TestDirectory.Create();
+        var graph = """
+            <mxGraphModel pageWidth="400" pageHeight="200"><root>
+              <mxCell id="0"/><mxCell id="1" parent="0"/>
+              <mxCell id="formatted" parent="1" vertex="1" value="&lt;b&gt;A &amp;amp; B&lt;/b&gt;" style="text;html=1;fontFamily=Arial;fontSize=16;"><mxGeometry x="40" y="80" width="160" height="30" as="geometry"/></mxCell>
+            </root></mxGraphModel>
+            """;
+        var path = directory.WriteFile("entities.drawio", $"<mxfile><diagram name=\"Page-1\">{graph}</diagram></mxfile>");
+
+        var result = new DrawioSceneCompiler().Compile(new CompileDrawioSceneCommand(path));
+
+        var node = Assert.IsType<SceneTextNode>(Assert.Single(result.Scene.Nodes));
+        Assert.Equal("A & B", node.RichText?.Text);
+        Assert.True(Assert.Single(node.RichText!.Runs!).Bold);
+    }
+
+    [Fact]
     public void Nested_stage_panels_do_not_create_extra_top_level_regions()
     {
         using var directory = TestDirectory.Create();
