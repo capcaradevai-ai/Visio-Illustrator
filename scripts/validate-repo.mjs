@@ -12,11 +12,13 @@ if (!Array.isArray(marketplace.plugins) || marketplace.plugins.length !== 1) thr
 const entry = marketplace.plugins[0];
 const pluginRoot = path.resolve(path.dirname(marketplacePath), "..", "..", entry.source.path);
 const manifest = JSON.parse(await fs.readFile(path.join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
+const packageJson = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
 const mcp = JSON.parse(await fs.readFile(path.join(pluginRoot, ".mcp.json"), "utf8"));
 
 if (entry.name !== "visio-scientific-illustrator") throw new Error("Unexpected plugin name.");
 if (entry.name !== manifest.name) throw new Error("Marketplace and manifest plugin names differ.");
-if (manifest.version !== "0.1.0") throw new Error("Unexpected public release version.");
+if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) throw new Error("Plugin version must use semantic versioning.");
+if (manifest.version !== packageJson.version) throw new Error("Plugin and package versions differ.");
 if (!mcp.mcpServers?.["visio-live"] || !mcp.mcpServers?.["visio-file-utils"]) {
   throw new Error("Required Visio MCP servers are missing.");
 }

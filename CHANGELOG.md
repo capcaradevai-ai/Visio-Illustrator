@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 - 2026-07-23
+
+- 新增 Scientific SceneGraph、区域检查点和可见逐步执行，支持从指定区域继续绘制。
+- 新增 draw.io 蓝图编译，保留节点、边、富文本、渐变、旋转、折线路由和装饰路径，不先生成 VSDX。
+- 新增可编辑 Visio Geometry 自由路径、字符级富文本、科学组件、布局、图层、Z-order、保护和安全 ShapeSheet 接口。
+- 扩展连接线锚点、具名连接点和折线路由；语义连接线保存后校验 BeginX/EndX 双端 GlueTo。
+- 新增结构保真校验和整图/分区域视觉比较，输出边缘、覆盖率、颜色差异及可选热图。
+- 重写 Visio Skill，移除 draw.io 专属术语与约束，加入高保真拆图、图元预算、区域纠偏和禁止简化规则。
+- 补充完整 API 示例、Visio 版本差异、图片编辑、公式模式和 ShapeSheet 安全边界。
+
 ## 0.1.0 - 2026-07-22
 
 - 首个 Windows-only Visio Scientific Illustrator 版本。

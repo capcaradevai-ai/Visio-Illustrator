@@ -48,6 +48,14 @@ npm run build:bridge
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location).Path
 ```
 
+如果 Codex 桌面版位于受保护的 WindowsApps 目录，当前 PowerShell 无法直接执行自动发现到的 `codex.exe`，可显式传入可执行文件的绝对路径：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 `
+  -InstallDir (Get-Location).Path `
+  -CodexExecutable "C:\Users\<用户名>\.codex\.sandbox-bin\codex.exe"
+```
+
 安装器会检查 Windows、Node.js 版本、Visio COM 注册、Codex CLI、Marketplace 元数据和 Bridge 可执行文件，然后注册本地 Marketplace 并安装：
 
 ```text
@@ -110,6 +118,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 | `visio_live_clear` | 经确认后以一个撤销单元清空当前页 |
 | `visio_live_add_shape` | 添加可编辑二维形状或文本 |
 | `visio_live_add_image` | 导入本地 PNG、JPEG、SVG 或 EMF |
+| `visio_live_add_path` / `visio_live_update_path` | 用 Visio Geometry 行创建或更新可编辑自由路径 |
 | `visio_live_add_connector` | 添加并粘附一维连接线 |
 | `visio_live_update_shape` | 仅修改显式提供的字段 |
 | `visio_live_delete_shape` | 按明确的连接线策略删除对象 |
@@ -123,6 +132,17 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 | `visio_live_group_shapes` | 将顶层对象组合并保留成员语义 ID |
 | `visio_live_ungroup_shape` | 取消组合并保留成员语义 ID |
 | `visio_live_add_to_container` | 将对象加入真实 Visio 容器 |
+| `visio_live_set_z_order` | 按语义 ID 精确调整前后层级 |
+| `visio_live_assign_layer` | 创建或复用 Visio 图层并分配对象 |
+| `visio_live_align_shapes` / `visio_live_distribute_shapes` | 使用 Visio 原生布局能力对齐、分布对象 |
+| `visio_live_match_size` | 统一宽度、高度或两者 |
+| `visio_live_set_protection` | 设置白名单内的 ShapeSheet Lock 单元格 |
+| `visio_live_duplicate_shape` | 复制可编辑 Shape 并分配新的语义 ID |
+| `visio_live_add_scientific_component` | 生成由可编辑图元组成的科研组件 |
+| `visio_live_get_cells` / `visio_live_set_cells` | 读取或写入白名单内的 ShapeSheet 单元格 |
+| `visio_live_add_connection_point` | 添加具名、归一化坐标连接点 |
+| `visio_live_get_geometry` | 检查原生 Geometry section 和行公式 |
+| `visio_live_draw_scene` | 按区域检查点逐步执行完整 Scientific SceneGraph |
 
 文件工具：
 
@@ -131,8 +151,174 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 | `visio_validate` | 以只读、隐藏方式重新打开并校验 VSDX |
 | `visio_inspect_file` | 检查已保存文件的页面、对象和连接关系 |
 | `visio_export` | 使用 Visio 原生接口导出 PNG、SVG 或 PDF |
+| `visio_compile_drawio_scene` | 把 draw.io 图编译为 Scientific SceneGraph，不生成 VSDX |
+| `visio_compare_preview` | 计算整图及分区域像素、边缘、覆盖率和颜色差异，并可导出热图 |
+| `visio_validate_fidelity` | 对照 SceneGraph 校验语义 ID、精确文字、图元预算、组合和双端粘附 |
 
 所有文件路径必须是绝对路径。输入对象严格拒绝未知字段；错误以稳定错误码、`retryable` 和可选 `details` 返回。
+
+## High-fidelity API examples
+
+### 富文本与公式
+
+`visio_live_add_shape` 的 `label` 与 `rich_text` 二选一。字符区间采用零基 `start` 和 UTF-16 字符 `length`；上标与下标不能在同一个 run 中同时为真。下面的对象仍是一个可直接编辑的 Visio 文本 Shape：
+
+```json
+{
+  "semantic_id": "loss_formula",
+  "shape": "rectangle",
+  "bounds": { "x": 620, "y": 80, "width": 260, "height": 72 },
+  "style": {
+    "fill": { "kind": "none" },
+    "line": { "width_pt": 0 },
+    "text_block": { "horizontal_align": "center", "vertical_align": "middle" }
+  },
+  "rich_text": {
+    "text": "Ltotal = Lrec + βLKL",
+    "runs": [
+      { "start": 0, "length": 1, "font_family": "Cambria Math", "italic": true },
+      { "start": 1, "length": 5, "font_family": "Cambria Math", "subscript": true },
+      { "start": 15, "length": 1, "font_family": "Cambria Math", "color": "#B64040", "bold": true },
+      { "start": 17, "length": 2, "font_family": "Cambria Math", "subscript": true }
+    ],
+    "fit": "shrink_text",
+    "minimum_font_size_pt": 8
+  }
+}
+```
+
+富文本适合可编辑的普通数学标记。需要 Office 原生公式排版且允许把公式作为独立对象管理时，应先在受支持的 Office 流程中生成 SVG/EMF，再以独立图片 Shape 插入；插件不会把图片内字符伪装成可编辑文本。
+
+### 自由路径
+
+路径坐标相对于 `bounds` 左上角，以像素表示；`M/L/C/A/Z` 分别对应移动、直线、三次贝塞尔、椭圆弧和闭合。路径在 Visio 中保存为原生 Geometry section，不是字符画或位图：
+
+```json
+{
+  "semantic_id": "motion_wave",
+  "bounds": { "x": 100, "y": 220, "width": 320, "height": 90 },
+  "sections": [{
+    "closed": false,
+    "filled": false,
+    "commands": [
+      { "op": "M", "x": 0, "y": 45 },
+      { "op": "C", "x1": 45, "y1": 5, "x2": 75, "y2": 5, "x": 120, "y": 45 },
+      { "op": "C", "x1": 165, "y1": 85, "x2": 205, "y2": 85, "x": 250, "y": 45 },
+      { "op": "L", "x": 320, "y": 45 }
+    ]
+  }],
+  "style": {
+    "fill": { "kind": "none" },
+    "line": { "color": "#2C78C4", "width_pt": 2.25, "cap": "round", "join": "round" }
+  }
+}
+```
+
+### Scientific SceneGraph
+
+SceneGraph 用稳定语义 ID 统一画布、图层、节点、连接线和区域检查点。`visio_live_draw_scene` 直接在可见页面中执行它，不会先写 VSDX；`step_delay_ms` 是每个可见操作完成后的间隔：
+
+```json
+{
+  "scene": {
+    "scene_id": "wifi_pipeline",
+    "canvas": { "width_px": 1600, "height_px": 900, "dpi": 96 },
+    "style_tokens": {},
+    "layers": ["background", "content", "annotation"],
+    "nodes": [
+      {
+        "kind": "component",
+        "semantic_id": "router",
+        "bounds": { "x": 80, "y": 300, "width": 150, "height": 110 },
+        "layer": "content",
+        "role": "router",
+        "parameters": { "primary_color": "#3978B8" }
+      },
+      {
+        "kind": "shape",
+        "semantic_id": "encoder",
+        "bounds": { "x": 560, "y": 280, "width": 230, "height": 150 },
+        "layer": "content",
+        "shape": "rounded_rectangle",
+        "label": "Feature Encoder"
+      }
+    ],
+    "connectors": [{
+      "semantic_id": "router_to_encoder",
+      "source": "router",
+      "target": "encoder",
+      "routing": "right_angle",
+      "glued": true,
+      "style": { "stroke_color": "#52677A", "stroke_width_pt": 1.5, "end_arrow": "triangle" }
+    }],
+    "regions": [{
+      "id": "acquisition",
+      "bounds": { "x": 0, "y": 0, "width": 850, "height": 900 },
+      "checkpoint": true
+    }]
+  },
+  "step_delay_ms": 500,
+  "existing_policy": "error"
+}
+```
+
+区域按声明顺序执行。检查点返回区域、完成步骤和预览信息；可以用 `start_region`、`end_region` 继续指定区间，或用 `stop_after_checkpoint` 在人工审阅点暂停。
+
+### 科研组件
+
+`visio_live_add_scientific_component` 支持 `number_badge`、`router`、`human_silhouette`、`joint_skeleton`、`video_frame_stack`、`tensor_cube`、`latent_vector`、`waveform`、`snowflake`、`wireless_link` 和 `stage_panel`。每个组件由可编辑 Visio 子图元构成：
+
+```json
+{
+  "semantic_id": "receiver_link",
+  "component": "wireless_link",
+  "bounds": { "x": 250, "y": 250, "width": 180, "height": 140 },
+  "options": {
+    "count": 4,
+    "direction": "left",
+    "primary_color": "#5B9F4A"
+  }
+}
+```
+
+### ShapeSheet 安全接口
+
+高级接口只接受 schema 中的白名单单元格和强类型值，不接受任意 FormulaU、事件公式或 COM 对象：
+
+```json
+{
+  "semantic_id": "encoder",
+  "writes": [
+    { "cell": "LockAspect", "value": true },
+    { "cell": "Rounding", "value": { "number": 8, "unit": "pt" } },
+    { "cell": "LineWeight", "value": { "number": 1.5, "unit": "pt" } }
+  ]
+}
+```
+
+如需确定可写名称和单位，应以工具输入 schema 为准；不在白名单内的单元格会直接拒绝，不会改写为近似实现。
+
+### 从 draw.io 蓝图迁移并做保真验收
+
+推荐链路是：`visio_compile_drawio_scene` → 审查/补充 SceneGraph → `visio_live_launch` → `visio_live_draw_scene` → 分区域 `visio_live_preview` 与 `visio_compare_preview` → `visio_live_save` → `visio_validate_fidelity` → `visio_export`。编译步骤只解析蓝图，不创建或打开 VSDX：
+
+```json
+{ "input_path": "E:\\figures\\source.drawio", "diagram_name": "Overview" }
+```
+
+```json
+{
+  "reference_path": "E:\\figures\\reference.png",
+  "candidate_path": "E:\\figures\\preview.png",
+  "heatmap_path": "E:\\figures\\difference.png",
+  "regions": [
+    { "id": "left", "x": 0, "y": 0, "width": 520, "height": 900 },
+    { "id": "middle", "x": 520, "y": 0, "width": 560, "height": 900 }
+  ]
+}
+```
+
+视觉指标用于发现偏差，不单独决定通过；最终门禁同时检查可编辑图元数量、文字、组合结构、语义 ID 和连接线双端 GlueTo 记录。
 
 ## COM and process ownership
 
@@ -163,9 +349,13 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 ## Known limitations
 
 - 当前版本仅发布 `win-x64` Bridge，并仅针对 Microsoft Visio 桌面版验收。
+- 不同 Visio 桌面版本对渐变方向、字体替换、字符上/下标和 Geometry 弧的渲染可能存在细微差异；能力探测不通过时返回 `CAPABILITY_NOT_AVAILABLE`，不会静默降级。
 - 为保证目标文件与已验证候选完全一致，安全保存会关闭并重新打开当前文档，因此保存前的 Visio 撤销历史不会跨越这次保存保留。
 - 显式连接点只引用目标 Shape 已存在的 `Connections.Xn`，不会自动创建或猜测缺失连接点。
 - 照片、显微图、热图和复杂渲染可作为图片对象插入，但图片内部像素不是可编辑的 Visio 几何图元。
+- 局部修改图片内容仍需回到图片源文件；插件只能移动、缩放、分层或替换整个图片 Shape。
+- 复杂公式有两种明确模式：优先使用富文本 run 保留字符可编辑性；需要完整数学排版时插入 SVG/EMF，并接受其内部字符不再是 Visio 文本。
+- ShapeSheet 高级写入仅覆盖公开白名单，不支持任意公式、事件、宏、外部链接或未声明单元格。
 - 科研专用 Master 集合是固定白名单；缺少 Master 时会明确报错，不自动替换。
 - 文件模式支持 VSDX 输入以及 PNG、SVG、PDF 输出，不支持旧版 VSD、JPG 或第三方格式转换。
 
@@ -181,11 +371,13 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location
 
 ```powershell
 npm test
-dotnet test plugins\visio-scientific-illustrator\bridge\VisioBridge.IntegrationTests\VisioBridge.IntegrationTests.csproj -c Release --filter "Category=VisioIntegration"
+npm run test:fidelity
+dotnet test plugins\visio-scientific-illustrator\bridge\VisioBridge.sln -c Release
+powershell -ExecutionPolicy Bypass -File .\scripts\build-stencil.ps1
 npm run build:bridge
 ```
 
-`npm test` 包含源码语法检查、仓库结构校验、两个 MCP 服务的协议冒烟测试、Node 单元测试和不依赖本机 Visio 的 Bridge 单元测试。标记为 `VisioIntegration` 的测试会实际启动可见或隐藏 Visio，只应在装有 Visio 的 Windows 开发机运行。
+`npm test` 包含源码语法检查、仓库结构校验、两个 MCP 服务的协议冒烟测试、Node 单元测试和不依赖本机 Visio 的 Bridge 单元测试。完整解决方案测试还会执行标记为 `VisioIntegration` 的保存重开、富文本、Geometry、组件和 GlueTo 用例；它们会实际启动可见或隐藏 Visio，只应在装有 Visio 的 Windows 开发机运行。构建发布包时先重新生成 stencil，再发布与插件 manifest 同版本的 self-contained `win-x64` Bridge。
 
 核心源码位于 `plugins/visio-scientific-illustrator/`。发布前还应执行插件清单验证和 Skill 规范校验。
 

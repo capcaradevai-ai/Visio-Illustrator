@@ -1,6 +1,6 @@
 {
   "name": "visio-scientific-illustrator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Draw editable scientific figures live inside Microsoft Visio through a local COM bridge.",
   "author": {
     "name": "Visio Scientific Illustrator Contributors"
@@ -12,7 +12,7 @@
   "interface": {
     "displayName": "Visio Scientific Illustrator",
     "shortDescription": "Draw editable scientific figures live inside Microsoft Visio.",
-    "longDescription": "Controls only a plugin-owned Microsoft Visio process through a local C# COM bridge. Editable shapes, text, images, glued connectors, groups, containers, styling, movement, and fitting appear step by step in the visible Visio window. The plugin safely saves VSDX files and validates or exports them through an independent hidden file mode.",
+    "longDescription": "Controls only a plugin-owned Microsoft Visio process through a local C# COM bridge. Rich text, native paths, scientific components, SceneGraphs, editable shapes, images, glued connectors, groups, layers, containers, layout, and ShapeSheet-safe styling appear step by step in the visible Visio window. The plugin compiles draw.io blueprints, compares regional previews, safely saves VSDX files, and validates structural fidelity through an independent hidden file mode.",
     "developerName": "Visio Scientific Illustrator Contributors",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],

@@ -17,10 +17,10 @@ import { fileTools, findTool } from "./tool-schemas.mjs";
 import { comparePngFiles } from "./visual-compare.mjs";
 
 const serverName = "visio-file-utils";
-const serverVersion = "0.1.0";
+const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const serverVersion = JSON.parse(await fs.readFile(path.join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8")).version;
 const supportedProtocols = new Set(["2024-11-05", "2025-03-26", "2025-06-18"]);
 const queue = new SerialQueue();
-const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 let bridgeClient = null;
 
 async function getBridgeClient() {

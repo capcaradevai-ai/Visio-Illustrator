@@ -4,11 +4,17 @@ $output = Join-Path $PSScriptRoot "..\plugins\visio-scientific-illustrator\asset
 $output = [IO.Path]::GetFullPath($output)
 $outputDirectory = Split-Path -Parent $output
 [IO.Directory]::CreateDirectory($outputDirectory) | Out-Null
+$staleBuilds = Get-ChildItem -LiteralPath $outputDirectory -Filter "visio-scientific-masters.build.*.vssx" -File
+foreach ($staleBuild in $staleBuilds) {
+    if ($staleBuild.DirectoryName -ne $outputDirectory) {
+        throw "Refusing to remove a stale stencil outside the asset directory."
+    }
+    Remove-Item -LiteralPath $staleBuild.FullName -Force
+}
 $temporaryOutput = Join-Path $outputDirectory ("visio-scientific-masters.build.{0}.vssx" -f [Guid]::NewGuid().ToString("N"))
 
-$application = New-Object -ComObject Visio.Application
-$application.Visible = $true
-Write-Host "Visio started."
+$application = New-Object -ComObject Visio.InvisibleApp
+Write-Host "Hidden Visio stencil builder started."
 $stencil = $null
 $containerStencil = $null
 $scratch = $null
@@ -262,21 +268,24 @@ try {
     Write-Host "Stencil saved."
 }
 finally {
-    if ($null -ne $containerStencil) {
-        $containerStencil.Close()
-        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($containerStencil)
-    }
-    if ($null -ne $stencil) {
-        $stencil.Close()
-        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($stencil)
-    }
     if ($null -ne $scratch) {
         $scratch.Saved = $true
         $scratch.Close()
-        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($scratch)
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($scratch)
+    }
+    if ($null -ne $containerStencil) {
+        $containerStencil.Close()
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($containerStencil)
+    }
+    if ($null -ne $stencil) {
+        $stencil.Saved = $true
+        $stencil.Close()
+        [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($stencil)
     }
     $application.Quit()
-    [void][Runtime.InteropServices.Marshal]::ReleaseComObject($application)
+    [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($application)
+    [GC]::Collect()
+    [GC]::WaitForPendingFinalizers()
 }
 
 Move-Item -LiteralPath $temporaryOutput -Destination $output -Force
