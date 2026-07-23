@@ -10,7 +10,7 @@ export async function comparePngFiles(referencePath, candidatePath, heatmapPath,
   const rawCandidate = decodePng(candidateBuffer);
   const normalized = reference.width !== rawCandidate.width || reference.height !== rawCandidate.height;
   const candidate = normalized
-    ? resizeImage(rawCandidate, reference.width, reference.height)
+    ? fitImage(rawCandidate, reference.width, reference.height)
     : rawCandidate;
   const normalizedCandidateBuffer = normalized
     ? encodePng(candidate.width, candidate.height, candidate.data)
@@ -46,6 +46,22 @@ export async function comparePngFiles(referencePath, candidatePath, heatmapPath,
     regions: regionMetrics,
     heatmap_path: heatmapPath ?? null,
   };
+}
+
+function fitImage(image, width, height) {
+  const scale = Math.min(width / image.width, height / image.height);
+  const scaledWidth = Math.max(1, Math.round(image.width * scale));
+  const scaledHeight = Math.max(1, Math.round(image.height * scale));
+  const resized = resizeImage(image, scaledWidth, scaledHeight);
+  const data = new Uint8Array(width * height * 4).fill(255);
+  const offsetX = Math.floor((width - scaledWidth) / 2);
+  const offsetY = Math.floor((height - scaledHeight) / 2);
+  for (let y = 0; y < scaledHeight; y += 1) {
+    const source = y * scaledWidth * 4;
+    const target = ((offsetY + y) * width + offsetX) * 4;
+    data.set(resized.data.subarray(source, source + scaledWidth * 4), target);
+  }
+  return { width, height, data };
 }
 
 function resizeImage(image, width, height) {

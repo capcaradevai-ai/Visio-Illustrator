@@ -52,7 +52,9 @@ public sealed class FidelityValidator
         foreach (var connector in scene.Connectors)
         {
             if (!snapshots.TryGetValue(connector.SemanticId, out var matches) || matches.Length != 1) continue;
-            if (matches[0].Type != "connector" || matches[0].ConnectedTo.Count != 2)
+            var expectedEndpoints = new HashSet<string>([connector.Source, connector.Target], StringComparer.Ordinal);
+            var actualEndpoints = matches[0].ConnectedTo.ToHashSet(StringComparer.Ordinal);
+            if (matches[0].Type != "connector" || !actualEndpoints.SetEquals(expectedEndpoints))
                 errors.Add($"连接线未双端粘附：{connector.SemanticId}");
             else glued++;
         }

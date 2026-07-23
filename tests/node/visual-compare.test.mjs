@@ -94,3 +94,24 @@ test("file comparison normalizes renderer dimensions and reports the original ca
     await fs.rm(directory, { recursive: true, force: true });
   }
 });
+
+test("aspect-ratio mismatch is letterboxed instead of stretched into a false match", async () => {
+  const reference = image(80, 40, (pixels, width) => {
+    for (let y = 10; y < 30; y += 1) for (let x = 20; x < 60; x += 1) setPixel(pixels, width, x, y, [20, 80, 150]);
+  });
+  const candidate = image(80, 80, (pixels, width) => {
+    for (let y = 20; y < 60; y += 1) for (let x = 20; x < 60; x += 1) setPixel(pixels, width, x, y, [20, 80, 150]);
+  });
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "visio-letterbox-"));
+  try {
+    const referencePath = path.join(directory, "reference.png");
+    const candidatePath = path.join(directory, "candidate.png");
+    await Promise.all([fs.writeFile(referencePath, reference), fs.writeFile(candidatePath, candidate)]);
+    const metrics = await comparePngFiles(referencePath, candidatePath);
+    assert.equal(metrics.canvas.normalized, true);
+    assert.ok(metrics.canvas.aspect_ratio_error > 0.4);
+    assert.ok(metrics.edge_f1 < 0.8);
+  } finally {
+    await fs.rm(directory, { recursive: true, force: true });
+  }
+});

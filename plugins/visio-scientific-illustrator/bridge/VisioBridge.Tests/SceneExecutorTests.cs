@@ -27,9 +27,41 @@ public sealed class SceneExecutorTests
 
         Assert.Equal("ensure_layers", plan.Steps[0].Command);
         Assert.True(IndexOf(plan, "add_shape", "background") < IndexOf(plan, "add_shape", "a"));
-        Assert.True(IndexOf(plan, "add_shape", "label") < IndexOf(plan, "add_connector", "flow"));
+        Assert.True(IndexOf(plan, "add_connector", "flow") < IndexOf(plan, "add_shape", "label"));
         Assert.True(IndexOf(plan, "add_shape", "label") < IndexOf(plan, "set_z_order", "label"));
         Assert.True(plan.Steps[^1].CheckpointAfter);
+    }
+
+    [Fact]
+    public void Checkpoints_finish_each_region_before_the_next_region_starts()
+    {
+        var scene = new ScientificScene(
+            "regional", new SceneCanvas(1000, 500, 96), new Dictionary<string, string>(), ["content", "labels"],
+            [
+                new SceneShapeNode("left-a", new PixelBox(40, 100, 100, 80), "rectangle"),
+                new SceneShapeNode("left-b", new PixelBox(260, 100, 100, 80), "rectangle"),
+                new SceneTextNode("left-label", new PixelBox(100, 250, 180, 40), "Left", Layer: "labels"),
+                new SceneShapeNode("right-a", new PixelBox(590, 100, 100, 80), "rectangle"),
+                new SceneShapeNode("right-b", new PixelBox(810, 100, 100, 80), "rectangle"),
+                new SceneTextNode("right-label", new PixelBox(650, 250, 180, 40), "Right", Layer: "labels"),
+            ],
+            [
+                new SceneConnector("left-flow", "left-a", "left-b", "straight"),
+                new SceneConnector("right-flow", "right-a", "right-b", "straight"),
+            ],
+            [
+                new SceneRegion("left", new PixelBox(0, 0, 500, 500), true),
+                new SceneRegion("right", new PixelBox(500, 0, 500, 500), true),
+            ]);
+
+        var plan = SceneExecutor.Prepare(new DrawSceneCommand(scene));
+        var leftCheckpoint = plan.Steps.ToList().FindIndex(step => step.RegionId == "left" && step.CheckpointAfter);
+        var firstRightStep = plan.Steps.ToList().FindIndex(step => step.RegionId == "right");
+
+        Assert.True(leftCheckpoint >= 0);
+        Assert.True(leftCheckpoint < firstRightStep);
+        Assert.True(IndexOf(plan, "add_connector", "left-flow") < IndexOf(plan, "add_shape", "left-label"));
+        Assert.True(IndexOf(plan, "add_connector", "right-flow") < IndexOf(plan, "add_shape", "right-label"));
     }
 
     [Fact]

@@ -37,6 +37,26 @@ public sealed class FidelityValidatorTests
         Assert.Contains(result.Errors, error => error.Contains("缺少 semantic_id", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void Connector_glue_must_target_the_declared_source_and_target()
+    {
+        var inspection = Inspection() with
+        {
+            Shapes =
+            [
+                Shape("a", "A"),
+                Shape("b", "B"),
+                Shape("flow", "", "connector", ["a", "unexpected"]),
+            ],
+        };
+
+        var result = new FidelityValidator().Validate(Scene(), inspection);
+
+        Assert.False(result.Valid);
+        Assert.Contains(result.Errors, error => error.Contains("flow", StringComparison.Ordinal));
+        Assert.Equal(0, result.Metrics.GluedConnectors);
+    }
+
     private static ScientificScene Scene() => new(
         "scene", new SceneCanvas(800, 500, 96), new Dictionary<string, string>(), ["content"],
         [

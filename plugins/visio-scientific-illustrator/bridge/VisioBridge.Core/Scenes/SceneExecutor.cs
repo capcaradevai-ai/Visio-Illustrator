@@ -28,6 +28,9 @@ internal static class SceneExecutor
         var selectedConnectors = command.Scene.Connectors
             .Where(connector => selectedIds.Contains(connector.Source) && selectedIds.Contains(connector.Target))
             .ToArray();
+        var connectorEndpoints = selectedConnectors
+            .SelectMany(connector => new[] { connector.Source, connector.Target })
+            .ToHashSet(StringComparer.Ordinal);
         var existing = existingSemanticIds?.ToHashSet(StringComparer.Ordinal)
             ?? new HashSet<string>(StringComparer.Ordinal);
         var conflicts = new List<SceneExecutionConflict>();
@@ -36,7 +39,8 @@ internal static class SceneExecutor
             new("ensure_layers", null, null, new EnsureLayersCommand(command.Scene.Layers), -100),
         };
 
-        foreach (var node in selectedNodes.Where(node => node is not SceneGroupNode).OrderBy(NodeRank).ThenBy(node => node.ZOrder ?? 0))
+        foreach (var node in selectedNodes.Where(node => node is not SceneGroupNode)
+            .OrderBy(node => NodeRank(node, connectorEndpoints)).ThenBy(node => node.ZOrder ?? 0))
         {
             var region = FindRegion(command.Scene, node.Bounds);
             if (existing.Contains(node.SemanticId))
@@ -45,10 +49,11 @@ internal static class SceneExecutor
                     conflicts.Add(new SceneExecutionConflict(node.SemanticId, "semantic_id 已存在，无法证明场景版本一致。", "明确选择 preserve 或先更新/删除冲突图元。"));
                 continue;
             }
-            steps.Add(new PendingStep(NodeCommand(node), node.SemanticId, region, NodeParameters(node), NodeRank(node)));
+            var rank = NodeRank(node, connectorEndpoints);
+            steps.Add(new PendingStep(NodeCommand(node), node.SemanticId, region, NodeParameters(node), rank));
             if (node.Layer is not null)
                 steps.Add(new PendingStep("assign_layer", node.SemanticId, region,
-                    new AssignLayerCommand([node.SemanticId], node.Layer), NodeRank(node) + 1));
+                    new AssignLayerCommand([node.SemanticId], node.Layer), rank + 1));
         }
 
         foreach (var group in selectedNodes.OfType<SceneGroupNode>()
@@ -82,10 +87,15 @@ internal static class SceneExecutor
                 continue;
             }
             var sourceNode = selectedNodes.Single(node => node.SemanticId == connector.Source);
+            var targetNode = selectedNodes.Single(node => node.SemanticId == connector.Target);
+            var connectorRegion = LaterRegion(
+                command.Scene,
+                FindRegion(command.Scene, sourceNode.Bounds),
+                FindRegion(command.Scene, targetNode.Bounds));
             steps.Add(new PendingStep(
                 "add_connector",
                 connector.SemanticId,
-                FindRegion(command.Scene, sourceNode.Bounds),
+                connectorRegion,
                 new AddConnectorCommand(
                     connector.SemanticId,
                     connector.Source,
@@ -107,7 +117,12 @@ internal static class SceneExecutor
                 new SetZOrderCommand(node.SemanticId, "absolute", node.ZOrder!.Value + 1), 500));
         }
 
-        var ordered = steps.OrderBy(step => step.Rank).ToList();
+        var ordered = new List<PendingStep>();
+        ordered.AddRange(steps.Where(step => step.RegionId is null).OrderBy(step => step.Rank));
+        foreach (var region in command.Scene.Regions.Where(region => regionRange.Contains(region.Id)))
+        {
+            ordered.AddRange(steps.Where(step => step.RegionId == region.Id).OrderBy(step => step.Rank));
+        }
         MarkCheckpoints(ordered, command.Scene, regionRange);
         var serialized = ordered.Select((step, index) => new SceneExecutionStep(
             index,
@@ -159,14 +174,19 @@ internal static class SceneExecutor
         _ => "add_shape",
     };
 
-    private static int NodeRank(SceneNode node)
+    private static int NodeRank(SceneNode node, IReadOnlySet<string> connectorEndpoints)
     {
         if (node.Role == "background") return 0;
         if (node.Role?.Contains("panel", StringComparison.Ordinal) == true) return 100;
-        // 先创建标签再创建连接线，使 Visio 只需按最终页面障碍完成一次路由，
-        // 避免每新增一个文字 Shape 都重新计算全部连接线。
-        if (node is SceneTextNode) return 240;
+        if (node is SceneTextNode) return connectorEndpoints.Contains(node.SemanticId) ? 200 : 400;
         return 200;
+    }
+
+    private static string LaterRegion(ScientificScene scene, string left, string right)
+    {
+        var leftIndex = FindRegionIndex(scene, left, "connector source region");
+        var rightIndex = FindRegionIndex(scene, right, "connector target region");
+        return scene.Regions[Math.Max(leftIndex, rightIndex)].Id;
     }
 
     private static int ParentDepth(SceneNode node, IReadOnlyList<SceneNode> nodes)
