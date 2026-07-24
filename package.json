@@ -2,7 +2,7 @@
   "name": "visio-scientific-illustrator-marketplace",
   "version": "0.3.0",
   "private": true,
-  "description": "Build and validation helpers for the Visio Scientific Illustrator Codex plugin marketplace.",
+  "description": "Build and validation helpers for the Visio Scientific Illustrator Codex and Claude Code plugin marketplace.",
   "type": "module",
   "scripts": {
     "check": "node --check plugins/visio-scientific-illustrator/scripts/mcp-common.mjs && node --check plugins/visio-scientific-illustrator/scripts/bridge-client.mjs && node --check plugins/visio-scientific-illustrator/scripts/tool-schemas.mjs && node --check plugins/visio-scientific-illustrator/scripts/live-server.mjs && node --check plugins/visio-scientific-illustrator/scripts/file-server.mjs && node scripts/validate-repo.mjs && npm run smoke",
@@ -11,7 +11,8 @@
     "test:fidelity": "node --test tests/node/fidelity-baseline.test.mjs tests/node/visual-compare.test.mjs",
     "build:bridge": "powershell -ExecutionPolicy Bypass -File scripts/build-bridge.ps1",
     "test:bridge": "dotnet test plugins/visio-scientific-illustrator/bridge/VisioBridge.sln -c Release --filter \"Category!=VisioIntegration\"",
-    "test": "npm run check && npm run test:node && npm run test:bridge"
+    "validate:claude": "claude plugin validate --strict . && claude plugin validate --strict plugins/visio-scientific-illustrator",
+    "test": "npm run check && npm run test:node && npm run test:bridge && npm run validate:claude"
   },
   "engines": {
     "node": ">=22"
