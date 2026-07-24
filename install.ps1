@@ -60,37 +60,34 @@ if ($LASTEXITCODE -ne 0) {
 }
 $existingMarketplace = $marketplaces | Where-Object { $_.name -eq $marketplaceName }
 if ($existingMarketplace) {
-  $installedPlugins = (& $codex plugin list --json | ConvertFrom-Json).installed
-  if ($LASTEXITCODE -ne 0) {
-    throw "Failed to inspect installed Codex plugins."
+  if ([IO.Path]::GetFullPath($existingMarketplace.root) -ne $resolvedInstallDir) {
+    throw "The Codex marketplace name is already registered from another source."
   }
-  if ($installedPlugins | Where-Object { $_.pluginId -eq $pluginId }) {
-    & $codex plugin remove $pluginId
-    if ($LASTEXITCODE -ne 0) {
-      throw "Failed to remove the previous Visio Scientific Illustrator installation."
-    }
-  }
-  & $codex plugin marketplace remove $marketplaceName
+}
+else {
+  & $codex plugin marketplace add $resolvedInstallDir
   if ($LASTEXITCODE -ne 0) {
-    throw "Failed to remove the previous local Visio marketplace snapshot."
+    throw "Failed to register the local Codex marketplace."
   }
 }
 
-& $codex plugin marketplace add $resolvedInstallDir
+$manifestVersion = (Get-Content -LiteralPath (Join-Path $pluginRoot ".codex-plugin\plugin.json") -Raw -Encoding utf8 | ConvertFrom-Json).version
+$installedPlugins = (& $codex plugin list --json | ConvertFrom-Json).installed
 if ($LASTEXITCODE -ne 0) {
-  throw "Failed to register the local Codex marketplace."
+  throw "Failed to inspect installed Codex plugins."
 }
-
-& $codex plugin add $pluginId
-if ($LASTEXITCODE -ne 0) {
-  throw "Failed to install the Visio Scientific Illustrator plugin."
+$installed = $installedPlugins | Where-Object { $_.pluginId -eq $pluginId }
+if ([string]$installed.version -ne [string]$manifestVersion) {
+  & $codex plugin add $pluginId
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to install the Visio Scientific Illustrator plugin."
+  }
 }
 
 $installed = (& $codex plugin list --json | ConvertFrom-Json).installed | Where-Object { $_.pluginId -eq $pluginId }
 if ($LASTEXITCODE -ne 0 -or -not $installed) {
   throw "Codex did not report the Visio Scientific Illustrator plugin as installed."
 }
-$manifestVersion = (Get-Content -LiteralPath (Join-Path $pluginRoot ".codex-plugin\plugin.json") -Raw -Encoding utf8 | ConvertFrom-Json).version
 if ([string]$installed.version -ne [string]$manifestVersion) {
   throw "Installed plugin version does not match the source manifest. Expected $manifestVersion, found $($installed.version)."
 }
