@@ -1,0 +1,18 @@
+{
+  "name": "visio-scientific-illustrator",
+  "version": "0.3.0",
+  "description": "Draw editable scientific figures live inside Microsoft Visio through a local COM bridge.",
+  "author": {
+    "name": "Visio Scientific Illustrator Contributors"
+  },
+  "homepage": "https://github.com/TZ-mx/Visio-Illustrator",
+  "repository": "https://github.com/TZ-mx/Visio-Illustrator",
+  "license": "MIT",
+  "keywords": [
+    "visio",
+    "scientific-figure",
+    "diagram",
+    "mcp"
+  ],
+  "mcpServers": "./.mcp.claude.json"
+}

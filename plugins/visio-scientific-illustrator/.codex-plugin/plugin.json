@@ -1,6 +1,6 @@
 {
   "name": "visio-scientific-illustrator",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Draw editable scientific figures live inside Microsoft Visio through a local COM bridge.",
   "author": {
     "name": "Visio Scientific Illustrator Contributors"

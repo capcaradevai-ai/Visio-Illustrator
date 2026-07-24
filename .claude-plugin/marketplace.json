@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "visio-scientific-tools",
+  "description": "Live, editable scientific illustration in Microsoft Visio.",
+  "owner": {
+    "name": "Visio Scientific Illustrator Contributors"
+  },
+  "plugins": [
+    {
+      "name": "visio-scientific-illustrator",
+      "description": "Draw and validate editable scientific figures live in Microsoft Visio through a local COM bridge.",
+      "author": {
+        "name": "Visio Scientific Illustrator Contributors"
+      },
+      "category": "productivity",
+      "source": "./plugins/visio-scientific-illustrator",
+      "homepage": "https://github.com/TZ-mx/Visio-Illustrator"
+    }
+  ]
+}
