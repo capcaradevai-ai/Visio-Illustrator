@@ -15,9 +15,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - run: npm install --global @anthropic-ai/claude-code@2.1.218
       - run: npm run check
       - run: npm run test:node
       - run: npm run test:fidelity
+      - run: npm run validate:claude
 
   bridge:
     runs-on: windows-latest

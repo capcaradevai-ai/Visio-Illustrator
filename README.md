@@ -83,6 +83,13 @@ npm run build:bridge
 claude plugin update visio-scientific-illustrator@visio-scientific-tools
 ```
 
+卸载 Codex 插件及本地 Marketplace：
+
+```powershell
+codex plugin remove visio-scientific-illustrator@visio-scientific-tools
+codex plugin marketplace remove visio-scientific-tools
+```
+
 卸载 Claude Code 插件及本地 Marketplace：
 
 ```powershell

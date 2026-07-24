@@ -5,10 +5,12 @@
 - Added native Claude Code marketplace and plugin manifests.
 - Added a Claude Code MCP configuration with cache-safe plugin-root paths.
 - Added an audited Windows installer for Claude Code.
+- Enforced Claude Code 2.1.218+ and verified the installed Skill, enabled state, and MCP inventory.
 - Made the Codex installer update in place without deleting a cache used by a running app.
 - Kept one shared Visio Skill, MCP implementation, COM bridge, and asset set for both platforms.
 - Added bilingual Codex and Claude Code installation, usage, update, uninstall, and troubleshooting guides.
 - Added dual-platform packaging and installer contract tests.
+- Added Claude manifest validation to the GitHub Actions workflow.
 
 ## 0.2.0 - 2026-07-23
 

@@ -11,6 +11,8 @@ test("Claude installer validates prerequisites and installs only Claude plugin s
   assert.match(script, /Get-Command claude/);
   assert.match(script, /Get-Command node/);
   assert.match(script, /Visio\.Application/);
+  assert.match(script, /\[version\]"2\.1\.218"/);
+  assert.match(script, /claude --version/);
   assert.match(script, /claude plugin validate/);
   assert.match(script, /plugin marketplace add/);
   assert.match(script, /plugin install/);
@@ -21,5 +23,9 @@ test("Claude installer validates prerequisites and installs only Claude plugin s
     script,
     /visio-scientific-illustrator@visio-scientific-tools/,
   );
+  assert.match(script, /\$plugin\.enabled -ne \$true/);
+  assert.match(script, /\$plugin\.mcpServers\.PSObject\.Properties\.Name/);
+  assert.match(script, /recreate-scientific-figure-in-visio/);
+  assert.match(script, /\$skillDirectories\.Count -ne 1/);
   assert.doesNotMatch(script, /codex plugin/);
 });

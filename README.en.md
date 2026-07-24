@@ -87,6 +87,13 @@ After pulling a new release, rerun `.\install.ps1` for Codex or `.\install-claud
 claude plugin update visio-scientific-illustrator@visio-scientific-tools
 ```
 
+To remove the Codex plugin and local marketplace:
+
+```powershell
+codex plugin remove visio-scientific-illustrator@visio-scientific-tools
+codex plugin marketplace remove visio-scientific-tools
+```
+
 To remove the Claude Code plugin and local marketplace:
 
 ```powershell

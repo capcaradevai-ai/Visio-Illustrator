@@ -47,6 +47,20 @@ else {
   $claude = $claudeCommand.Source
 }
 
+$claudeVersionOutput = (& $claude --version).Trim()
+if ($LASTEXITCODE -ne 0) {
+  throw "Failed to inspect the Claude Code version."
+}
+$claudeVersionMatch = [regex]::Match($claudeVersionOutput, "^(\d+\.\d+\.\d+)")
+if (-not $claudeVersionMatch.Success) {
+  throw "Claude Code returned an unrecognized version: $claudeVersionOutput"
+}
+$claudeVersion = [version]$claudeVersionMatch.Groups[1].Value
+$minimumClaudeVersion = [version]"2.1.218"
+if ($claudeVersion -lt $minimumClaudeVersion) {
+  throw "Claude Code 2.1.218 or newer is required. Found: $claudeVersionOutput"
+}
+
 if ($null -eq [type]::GetTypeFromProgID("Visio.Application", $false)) {
   throw "Microsoft Visio desktop COM automation is not registered."
 }
@@ -99,6 +113,35 @@ $manifestVersion = (Get-Content -LiteralPath $manifest -Raw -Encoding utf8 |
   ConvertFrom-Json).version
 if ([string]$plugin.version -ne [string]$manifestVersion) {
   throw "Installed Claude plugin version does not match $manifestVersion."
+}
+if ($plugin.enabled -ne $true) {
+  throw "Claude Code installed the plugin but did not enable it."
+}
+
+$expectedMcpServers = @("visio-file-utils", "visio-live")
+$installedMcpServers = @(
+  $plugin.mcpServers.PSObject.Properties.Name | Sort-Object
+)
+if (@(Compare-Object $expectedMcpServers $installedMcpServers).Count -ne 0) {
+  throw "Installed Claude plugin does not expose exactly the required MCP servers."
+}
+
+$installedPluginRoot = [IO.Path]::GetFullPath([string]$plugin.installPath)
+$skillsRoot = Join-Path $installedPluginRoot "skills"
+if (-not (Test-Path -LiteralPath $skillsRoot -PathType Container)) {
+  throw "Installed Claude plugin is missing its skills directory."
+}
+$skillDirectories = @(
+  Get-ChildItem -LiteralPath $skillsRoot -Directory
+)
+$expectedSkillName = "recreate-scientific-figure-in-visio"
+$installedSkillManifest = if ($skillDirectories.Count -eq 1) {
+  Join-Path $skillDirectories[0].FullName "SKILL.md"
+}
+if ($skillDirectories.Count -ne 1 -or
+    $skillDirectories[0].Name -ne $expectedSkillName -or
+    -not (Test-Path -LiteralPath $installedSkillManifest -PathType Leaf)) {
+  throw "Installed Claude plugin does not contain exactly the required Visio Skill."
 }
 
 & $claude plugin details $pluginId
