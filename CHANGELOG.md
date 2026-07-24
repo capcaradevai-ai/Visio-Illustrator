@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - 2026-07-24
+
+- Added native Claude Code marketplace and plugin manifests.
+- Added a Claude Code MCP configuration with cache-safe plugin-root paths.
+- Added an audited Windows installer for Claude Code.
+- Kept one shared Visio Skill, MCP implementation, COM bridge, and asset set for both platforms.
+- Added bilingual Codex and Claude Code installation, usage, update, uninstall, and troubleshooting guides.
+- Added dual-platform packaging and installer contract tests.
+
 ## 0.2.0 - 2026-07-23
 
 - 新增 Scientific SceneGraph、区域检查点和可见逐步执行，支持从指定区域继续绘制。

@@ -2,7 +2,7 @@
 
 English | [简体中文](README.md)
 
-Visio Scientific Illustrator is a Windows-only Codex plugin for creating editable scientific diagrams live in a visible Microsoft Visio window. Codex creates native Visio text, shapes, images, groups, containers, freeform paths, and glued connectors step by step, then saves an editable `.vsdx` deliverable and exports previews.
+Visio Scientific Illustrator is a Windows-only plugin for Codex and Claude Code. It creates editable scientific diagrams live in a visible Microsoft Visio window. The model creates native Visio text, shapes, images, groups, containers, freeform paths, and glued connectors step by step, then saves an editable `.vsdx` deliverable and exports previews.
 
 It does not use system mouse/keyboard automation and does not generate a VSDX before opening it. Each controlled object has a stable `User.CodexId` semantic ID for inspection, local updates, and fidelity checks.
 
@@ -19,7 +19,7 @@ It does not use system mouse/keyboard automation and does not generate a VSDX be
 
 ```mermaid
 flowchart LR
-    C["Codex"] -->|"MCP over stdio"| N["Node.js validation and serial queue"]
+    C["Codex / Claude Code"] -->|"MCP over stdio"| N["Node.js validation and serial queue"]
     N -->|"JSON Lines"| B["VisioBridge.exe\n.NET 8 STA"]
     B -->|"COM"| V["Plugin-owned visible Visio"]
     C -->|"saved-file tools"| F["Independent hidden file mode"]
@@ -32,7 +32,7 @@ flowchart LR
 
 - Windows 10 or Windows 11 x64.
 - Microsoft Visio desktop installed and started at least once; this release is validated with 64-bit Visio.
-- Codex desktop app or Codex CLI with plugin support.
+- Codex desktop app, Codex CLI with plugin support, or Claude Code 2.1.218 or newer.
 - Node.js 22 or newer.
 - .NET 8 SDK only when building the Bridge from source.
 
@@ -40,37 +40,67 @@ Visio for the web, macOS, Linux, and installations without the `Visio.Applicatio
 
 ## Installation
 
-Clone this repository and enter its root directory:
+This repository uses one shared plugin directory with separate Codex and Claude Code manifests. Both platforms use the same Skill, MCP implementation, COM Bridge, Visio stencil, and assets.
+
+### Codex
 
 ```powershell
-git clone https://github.com/ShuWisensing/Visio-Scientific-Illustrator.git
-Set-Location Visio-Scientific-Illustrator
+git clone https://github.com/TZ-mx/Visio-Illustrator.git
+Set-Location Visio-Illustrator
+.\install.ps1
 ```
 
-Build the Bridge if `plugins/visio-scientific-illustrator/bin/win-x64/VisioBridge.exe` is absent or its source changed:
-
-```powershell
-npm run build:bridge
-```
-
-Install the local marketplace and plugin:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location).Path
-```
-
-If PowerShell cannot execute the Codex binary discovered in the protected WindowsApps directory, use the official temporary npm CLI instead:
+Fully restart Codex and create a new task. If PowerShell cannot execute the Codex binary discovered in the protected WindowsApps directory, use the official temporary CLI:
 
 ```powershell
 npx --yes @openai/codex@latest plugin marketplace add (Get-Location).Path
 npx --yes @openai/codex@latest plugin add visio-scientific-illustrator@visio-scientific-tools
 ```
 
-Restart Codex completely and start a new task. The installed plugin ID is `visio-scientific-illustrator@visio-scientific-tools`. After updating the repository, rebuild the Bridge, reinstall, and restart Codex.
+### Claude Code
+
+Verify that `claude --version` is 2.1.218 or newer, then run:
+
+```powershell
+git clone https://github.com/TZ-mx/Visio-Illustrator.git
+Set-Location Visio-Illustrator
+.\install-claude.ps1
+```
+
+The installer strictly validates the marketplace, plugin manifest, Node.js, Visio COM registration, and Bridge before installing `visio-scientific-illustrator@visio-scientific-tools` in user scope. Run `/reload-plugins` in Claude Code or start a new session.
+
+### Building the Bridge from source
+
+The published repository includes `plugins/visio-scientific-illustrator/bin/win-x64/VisioBridge.exe`. Build it only if the executable is missing or the Bridge source changed:
+
+```powershell
+npm run build:bridge
+```
+
+Then rerun the installer for the target platform.
+
+### Update and uninstall
+
+After pulling a new release, rerun `.\install.ps1` for Codex or `.\install-claude.ps1` for Claude Code. Claude Code also supports:
+
+```powershell
+claude plugin update visio-scientific-illustrator@visio-scientific-tools
+```
+
+To remove the Claude Code plugin and local marketplace:
+
+```powershell
+claude plugin uninstall visio-scientific-illustrator@visio-scientific-tools --scope user
+claude plugin marketplace remove visio-scientific-tools --scope user
+```
 
 ## Quick start
 
-Restart Codex, create a new task, attach a reference image if applicable, and use a prompt such as:
+Codex: select **Visio Scientific Illustrator** in the plugin picker, then describe the reference, output directory, drawing interval, and deliverables.
+
+Claude Code: the Skill name is `visio-scientific-illustrator:recreate-scientific-figure-in-visio`. Let Claude select it automatically or invoke `/visio-scientific-illustrator:recreate-scientific-figure-in-visio` explicitly.
+
+Create a new task or session, attach a reference image if applicable, and use a prompt such as:
 
 ```text
 Use Visio Scientific Illustrator. Recreate this reference figure step by step
@@ -172,7 +202,8 @@ Regions run in declaration order. A checkpoint returns its preview and completed
 | `VISIO_BUSY` | Finish the active Visio dialog, drag, or cell edit, then retry. |
 | `SESSION_INVALIDATED` | The plugin-owned Visio process was closed; start a new live session. |
 | `OUTPUT_EXISTS` | Use a new absolute output path or explicitly set `overwrite: true`. |
-| Plugin is not visible | Fully restart Codex and start a new task. |
+| Plugin is not visible in Codex | Fully restart Codex and start a new task. |
+| Plugin is not visible in Claude Code | Run `/reload-plugins` or start a new session, then inspect `claude plugin list --json` and `claude plugin details visio-scientific-illustrator@visio-scientific-tools`. |
 
 ## Development
 

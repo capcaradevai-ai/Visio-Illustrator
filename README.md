@@ -2,7 +2,7 @@
 
 [English](README.en.md) | 简体中文
 
-Visio Scientific Illustrator 是一个仅支持 Windows 的 Codex 插件。它让 Codex 通过 Microsoft Visio 的 COM 自动化接口，在用户可见的 Visio 窗口中逐步绘制科研示意图，并交付可继续编辑的 `.vsdx` 文件，而不是先生成静态图片或文件包再打开。
+Visio Scientific Illustrator 是一个仅支持 Windows、同时兼容 Codex 和 Claude Code 的插件。它让模型通过 Microsoft Visio 的 COM 自动化接口，在用户可见的 Visio 窗口中逐步绘制科研示意图，并交付可继续编辑的 `.vsdx` 文件，而不是先生成静态图片或文件包再打开。
 
 绘制得到的文字、二维形状、图片、分组、容器和一维连接线都是真实的 Visio 对象；连接线端点使用 `GlueTo` 粘附到目标形状。每个受控对象都使用 `User.CodexId` 保存稳定语义 ID，便于后续检查和局部修改。
 
@@ -10,7 +10,7 @@ Visio Scientific Illustrator 是一个仅支持 Windows 的 Codex 插件。它�
 
 ```mermaid
 flowchart LR
-    C["Codex"] -->|"MCP over stdio"| N["Node.js schema validation<br/>and serial queue"]
+    C["Codex / Claude Code"] -->|"MCP over stdio"| N["Node.js schema validation<br/>and serial queue"]
     N -->|"JSON lines over child stdio"| B["VisioBridge.exe<br/>.NET 8 x64 STA"]
     B -->|"COM + OLE message filter"| V["Plugin-owned visible Visio"]
     C -->|"saved-file tools"| F["Independent hidden file mode"]
@@ -28,7 +28,7 @@ Node.js 层负责严格参数校验、拒绝未知字段和串行化所有状态
 
 - Windows 10 或 Windows 11 x64。
 - 已安装并完成首次启动的 Microsoft Visio 桌面版；当前构建和验收环境为 64 位 Visio。
-- 支持插件的 Codex 桌面应用或 Codex CLI。
+- 支持插件的 Codex 桌面应用、Codex CLI，或 Claude Code 2.1.218 及更高版本。
 - Node.js 22 或更高版本。
 - 从源码构建 Bridge 时需要 .NET 8 SDK；使用已包含 `VisioBridge.exe` 的发布包时不需要 SDK。
 
@@ -36,57 +36,76 @@ Visio 网页版、macOS、Linux 和未注册 `Visio.Application` COM 类的精�
 
 ## Install
 
-### 安装当前本地仓库
+仓库采用单一插件目录和双平台清单：Codex 与 Claude Code 共享同一个 Skill、MCP 实现、COM Bridge、Visio 模板和资源，不需要维护两份绘图代码。
 
-在 PowerShell 中进入仓库根目录。若 `plugins/visio-scientific-illustrator/bin/win-x64/VisioBridge.exe` 尚不存在，先构建 Bridge：
-
-```powershell
-npm run build:bridge
-```
-
-然后运行安装器：
+### Codex
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location).Path
+git clone https://github.com/TZ-mx/Visio-Illustrator.git
+Set-Location Visio-Illustrator
+.\install.ps1
 ```
 
-如果 Codex 桌面版位于受保护的 WindowsApps 目录，当前 PowerShell 可能无法直接执行自动发现到的 `codex.exe`。此时可使用官方 Codex CLI 的临时 npm 包注册 Marketplace 并安装插件：
+安装完成后完全退出并重启 Codex，再新建任务。如果 Codex 桌面版位于受保护的 WindowsApps 目录，PowerShell 无法执行自动发现到的 `codex.exe`，可改用官方临时 CLI：
 
 ```powershell
 npx --yes @openai/codex@latest plugin marketplace add (Get-Location).Path
 npx --yes @openai/codex@latest plugin add visio-scientific-illustrator@visio-scientific-tools
 ```
 
-安装器会检查 Windows、Node.js 版本、Visio COM 注册、Codex CLI、Marketplace 元数据和 Bridge 可执行文件，然后注册本地 Marketplace 并安装：
+### Claude Code
 
-```text
-visio-scientific-illustrator@visio-scientific-tools
-```
-
-安装完成后必须重启 Codex，并新建一个任务，新的 Skill 和 MCP 服务才会被加载。
-
-### 从源码安装
+先确认 `claude --version` 不低于 2.1.218，然后执行：
 
 ```powershell
-git clone <仓库地址> visio-illustrator
-Set-Location visio-illustrator
-npm run build:bridge
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir (Get-Location).Path
+git clone https://github.com/TZ-mx/Visio-Illustrator.git
+Set-Location Visio-Illustrator
+.\install-claude.ps1
 ```
 
-更新代码后，重新执行构建和安装命令，再重启 Codex。
+安装器会严格验证 Marketplace、插件清单、Node.js、Visio COM 和 Bridge，然后以用户范围注册并安装 `visio-scientific-illustrator@visio-scientific-tools`。安装后在 Claude Code 中执行 `/reload-plugins`，或新建会话。
+
+### 从源码构建 Bridge
+
+发布仓库已经包含 `plugins/visio-scientific-illustrator/bin/win-x64/VisioBridge.exe`。只有该文件缺失或 Bridge 源码发生变化时才需要：
+
+```powershell
+npm run build:bridge
+```
+
+随后重新运行对应平台的安装器。
+
+### 更新与卸载
+
+拉取新版本后，Codex 重新执行 `.\install.ps1`；Claude Code 可重新执行 `.\install-claude.ps1`，或使用：
+
+```powershell
+claude plugin update visio-scientific-illustrator@visio-scientific-tools
+```
+
+卸载 Claude Code 插件及本地 Marketplace：
+
+```powershell
+claude plugin uninstall visio-scientific-illustrator@visio-scientific-tools --scope user
+claude plugin marketplace remove visio-scientific-tools --scope user
+```
 
 ## How to use
 
-重启 Codex 后，新建任务并上传参考图，或直接描述要绘制的结构。推荐明确要求使用插件、可见逐步绘制、步进间隔、画布尺寸和交付格式。
+Codex：在插件选择器中选择 **Visio Scientific Illustrator**，然后直接描述参考图、输出目录、步进间隔和格式要求。
+
+Claude Code：插件 Skill 名称为 `visio-scientific-illustrator:recreate-scientific-figure-in-visio`。可以让 Claude 自动选择，也可以显式输入 `/visio-scientific-illustrator:recreate-scientific-figure-in-visio`。
+
+新建任务或会话后上传参考图，或直接描述要绘制的结构。推荐明确要求使用插件、可见逐步绘制、步进间隔、画布尺寸和交付格式。
 
 示例提示词：
 
 ```text
-使用 Visio Scientific Illustrator。在可见的 Microsoft Visio 页面中逐步重绘这张参考图，
-每个绘制步骤间隔 500 ms。所有文字、形状和连接线都要保持可编辑，连接线端点必须真正粘附。
-每完成一个逻辑区域就导出预览并检查；不要使用系统鼠标键盘自动化，也不要先生成 VSDX 再打开。
-完成后保存为 E:\figures\result.vsdx，校验文件，并导出宽度 2000 px 的 PNG。
+使用 Visio Scientific Illustrator，在插件拥有的可见 Microsoft Visio 页面中
+逐步重绘这张参考图。每步间隔 500 ms。文字、形状和连接线必须保持可编辑，
+所有语义连接线的两端必须真正粘附。每完成一个逻辑区域就导出预览并检查，
+不要使用系统鼠标键盘自动化，也不要先生成 VSDX 再打开。完成后保存 VSDX，
+执行结构与保真校验，并导出宽度 2000 px 的 PNG。
 ```
 
 一个典型实时流程是：
@@ -345,7 +364,8 @@ SceneGraph 用稳定语义 ID 统一画布、图层、节点、连接线和区�
 - `SESSION_INVALIDATED`：插件自有 Visio 被手工关闭或 COM 会话失效；保存可恢复内容后启动新会话。
 - `OUTPUT_EXISTS`：明确设置 `overwrite: true`，或选择新的绝对输出路径。
 - `MASTER_NOT_FOUND`：检查 `assets/visio-scientific-masters.vssx` 是否随插件完整安装；插件不会换用其他形状兜底。
-- 安装后看不到插件：完全退出并重启 Codex，然后创建新任务。
+- Codex 安装后看不到插件：完全退出并重启 Codex，然后创建新任务。
+- Claude Code 安装后看不到插件：执行 `/reload-plugins` 或新建会话，再用 `claude plugin list --json` 与 `claude plugin details visio-scientific-illustrator@visio-scientific-tools` 检查状态。
 
 ## Known limitations
 
