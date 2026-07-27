@@ -1,0 +1,23 @@
+using VisioTestBridge.Core.Abstractions;
+
+namespace VisioTestBridge.Tests.Fakes;
+
+internal sealed class ThrowingDocumentSaver : IDocumentSaver
+{
+    public void Save(string path) => throw new IOException("injected save failure");
+
+    public void CloseForCommit()
+    {
+    }
+
+    public void Reopen(string path)
+    {
+    }
+}
+
+internal sealed class PassThroughDocumentValidator : IDocumentValidator
+{
+    public void Validate(string path)
+    {
+    }
+}

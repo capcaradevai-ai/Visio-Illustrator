@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visio Test Figure Orchestrator"
+  short_description: "Coordinate gated, editable Visio figure reconstruction"
+  default_prompt: "Use $visio-test-orchestrate-scientific-figure to reconstruct this reference as an editable Visio figure with gated regional review."

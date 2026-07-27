@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visio Test Live Figure Drawer"
+  short_description: "Draw editable figures in visible Microsoft Visio"
+  default_prompt: "Use $visio-test-draw-scientific-figure-live to execute the approved region plan in the visible Test Edition Visio page."

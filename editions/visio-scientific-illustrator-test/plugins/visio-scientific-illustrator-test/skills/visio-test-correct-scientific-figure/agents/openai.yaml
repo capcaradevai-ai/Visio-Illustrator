@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visio Test Figure Corrector"
+  short_description: "Apply minimal finding-driven Visio corrections"
+  default_prompt: "Use $visio-test-correct-scientific-figure to correct the specified findings without changing accepted content."

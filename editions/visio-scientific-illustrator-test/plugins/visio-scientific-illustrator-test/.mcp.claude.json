@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "visio-test-live": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/live-server.mjs"
+      ]
+    },
+    "visio-test-file-utils": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/file-server.mjs"
+      ]
+    }
+  }
+}

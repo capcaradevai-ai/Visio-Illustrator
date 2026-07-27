@@ -1,0 +1,25 @@
+{
+  "name": "visio-scientific-illustrator-test",
+  "version": "0.4.0-test.1",
+  "description": "Test revisioned quality workflows for editable scientific figures in visible Microsoft Visio.",
+  "author": {
+    "name": "Visio Scientific Illustrator Contributors"
+  },
+  "license": "MIT",
+  "keywords": ["visio", "scientific-figure", "diagram", "mcp", "test-edition"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Visio Scientific Illustrator Test",
+    "shortDescription": "Test tool-driven quality gates for editable figures in visible Microsoft Visio.",
+    "longDescription": "Controls only a Test Edition-owned visible Microsoft Visio process through an isolated local C# COM bridge. It preserves editable native shapes, text, paths, glued connectors, groups, layers, containers, SceneGraphs, scientific components and ShapeSheet metadata while adding revisioned regional review and correction workflows.",
+    "developerName": "Visio Scientific Illustrator Contributors",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "使用 Visio Scientific Illustrator Test，在可见的 Microsoft Visio 页面中逐步重绘可编辑科学插图。",
+      "Recreate this reference figure with the Visio Scientific Illustrator Test quality workflow."
+    ],
+    "brandColor": "#3955A3"
+  }
+}

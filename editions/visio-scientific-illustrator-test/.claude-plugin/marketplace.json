@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "visio-scientific-tools-test",
+  "description": "Isolated test edition for live, editable scientific illustration in Microsoft Visio.",
+  "owner": {
+    "name": "Visio Scientific Illustrator Contributors"
+  },
+  "plugins": [
+    {
+      "name": "visio-scientific-illustrator-test",
+      "description": "Test edition with revisioned quality gates for live editable Microsoft Visio figures.",
+      "author": {
+        "name": "Visio Scientific Illustrator Contributors"
+      },
+      "category": "productivity",
+      "source": "./plugins/visio-scientific-illustrator-test",
+      "homepage": "https://github.com/TZ-mx/Visio-Illustrator"
+    }
+  ]
+}

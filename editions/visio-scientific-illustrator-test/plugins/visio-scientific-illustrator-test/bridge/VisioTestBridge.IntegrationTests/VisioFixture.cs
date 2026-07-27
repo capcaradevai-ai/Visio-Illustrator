@@ -1,0 +1,206 @@
+using VisioTestBridge.Contracts;
+using VisioTestBridge.Core.Abstractions;
+using VisioTestBridge.Core.Commands;
+using VisioTestBridge.Core.Persistence;
+using VisioTestBridge.Core.Session;
+
+namespace VisioTestBridge.IntegrationTests;
+
+public sealed class VisioFixture : IDisposable
+{
+    private readonly VisioSession _session;
+    private bool _disposed;
+
+    private VisioFixture(VisioSession session)
+    {
+        _session = session;
+        Router = new CommandRouter(session);
+    }
+
+    public CommandRouter Router { get; }
+
+    public int OwnedProcessId => _session.OwnedProcessId
+        ?? throw new InvalidOperationException("Fixture 没有 owned Visio PID。");
+
+    public SessionState State => _session.State;
+
+    public ShapeMutationResult AddShape(AddShapeCommand command) => _session.AddShape(command);
+
+    public PathMutationResult AddPath(AddPathCommand command) => _session.AddPath(command);
+
+    public PathMutationResult UpdatePath(UpdatePathCommand command) => _session.UpdatePath(command);
+
+    public ConnectorMutationResult AddConnector(AddConnectorCommand command) =>
+        _session.AddConnector(command);
+
+    public PageInspectionResult Inspect(int maxShapes = 500) =>
+        _session.Inspect(maxShapes);
+
+    public ShapeSnapshot UpdateShape(UpdateShapeCommand command) =>
+        _session.UpdateShape(command);
+
+    public DeleteResult DeleteShape(DeleteShapeCommand command) =>
+        _session.DeleteShape(command);
+
+    public void Undo() => _session.UndoLastForIntegrationTest();
+
+    public int AddPage(
+        string pageName,
+        int widthPx,
+        int heightPx,
+        int dpi,
+        bool activate) => _session.AddPageForIntegrationTest(
+            pageName,
+            widthPx,
+            heightPx,
+            dpi,
+            activate);
+
+    public (string BoundPage, string ActivePage) ReadPageBinding() =>
+        _session.ReadPageBindingForIntegrationTest();
+
+    public object Fit(string mode) => _session.Fit(mode);
+
+    public void QuitApplicationExternally() =>
+        _session.QuitApplicationExternallyForIntegrationTest();
+
+    public void AddConnectionPoint(
+        string semanticId,
+        double xFraction,
+        double yFraction) => _session.AddConnectionPointForIntegrationTest(
+            semanticId,
+            xFraction,
+            yFraction);
+
+    public RasterSettings ReadRasterSettings() =>
+        _session.ReadRasterSettingsForIntegrationTest();
+
+    public (string FullName, bool Saved) ReadDocumentSaveState() =>
+        _session.ReadDocumentSaveStateForIntegrationTest();
+
+    public double ReadCellResult(string semanticId, string cellName) =>
+        _session.ReadCellResultForIntegrationTest(semanticId, cellName);
+
+    public int ReadGroupChildCount(string semanticId) =>
+        _session.ReadGroupChildCountForIntegrationTest(semanticId);
+
+    public PreviewResult ExportPreview(int widthPx) =>
+        _session.ExportPreview(widthPx);
+
+    public SaveResult Save(string outputPath, bool overwrite = false) =>
+        _session.Save(new SaveCommand(outputPath, overwrite));
+
+    public GroupMutationResult GroupShapes(GroupShapesCommand command) =>
+        _session.GroupShapes(command);
+
+    public UngroupMutationResult UngroupShape(UngroupShapeCommand command) =>
+        _session.UngroupShape(command);
+
+    public ContainerMutationResult AddToContainer(AddToContainerCommand command) =>
+        _session.AddToContainer(command);
+
+    public LayoutMutationResult SetZOrder(SetZOrderCommand command) =>
+        _session.SetZOrder(command);
+
+    public LayoutMutationResult AssignLayer(AssignLayerCommand command) =>
+        _session.AssignLayer(command);
+
+    public LayoutMutationResult AlignShapes(AlignShapesCommand command) =>
+        _session.AlignShapes(command);
+
+    public LayoutMutationResult DistributeShapes(DistributeShapesCommand command) =>
+        _session.DistributeShapes(command);
+
+    public LayoutMutationResult MatchSize(MatchSizeCommand command) =>
+        _session.MatchSize(command);
+
+    public LayoutMutationResult SetProtection(SetProtectionCommand command) =>
+        _session.SetProtection(command);
+
+    public LayoutMutationResult DuplicateShape(DuplicateShapeCommand command) =>
+        _session.DuplicateShape(command);
+
+    public ScientificComponentMutationResult AddScientificComponent(AddScientificComponentCommand command) =>
+        _session.AddScientificComponent(command);
+
+    public ShapeSheetCellsResult GetCells(GetCellsCommand command) => _session.GetCells(command);
+
+    public ShapeSheetCellsResult SetCells(SetCellsCommand command) => _session.SetCells(command);
+
+    public ConnectionPointMutationResult AddConnectionPoint(AddConnectionPointCommand command) =>
+        _session.AddConnectionPoint(command);
+
+    public GeometryInspectionResult GetGeometry(GetGeometryCommand command) => _session.GetGeometry(command);
+
+    public SceneExecutionPlan PrepareScene(DrawSceneCommand command) => _session.PrepareScene(command);
+
+    public EnsureLayersResult EnsureLayers(EnsureLayersCommand command) => _session.EnsureLayers(command);
+
+    public object Refresh() => _session.Refresh();
+
+    public static VisioFixture WithOneShape()
+    {
+        var fixture = StartVisible();
+        fixture.AddShape(new AddShapeCommand(
+            "preview-shape",
+            "rectangle",
+            new PixelBox(200, 200, 400, 200),
+            "Preview"));
+        return fixture;
+    }
+
+    public SessionStatus GetStatus() => _session.GetStatus();
+
+    public RegionQualitySnapshot GetQualityStatus() => _session.GetQualityStatus();
+
+    public FigureAuditResult AuditFigure(FigureAuditInput command) =>
+        _session.AuditFigure(command);
+
+    public StructureHashResult GetStructureHash() =>
+        _session.GetStructureHash();
+
+    public void EditShapeTextExternally(string semanticId, string text) =>
+        _session.EditShapeTextExternallyForIntegrationTest(semanticId, text);
+
+    public AuditFinding SetAuditDecision(SetAuditDecisionCommand command) =>
+        _session.SetAuditDecision(command);
+
+    public QualityGateResult AssertQualityGate(string regionId) =>
+        _session.AssertQualityGate(new QualityGateCommand(regionId));
+
+    public AuditHistoryState ReadAuditHistory() =>
+        _session.ReadAuditHistoryForIntegrationTest();
+
+    public static VisioFixture StartVisible()
+    {
+        var pluginRoot = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            "..",
+            ".."));
+        var session = new VisioSession(pluginRoot);
+        try
+        {
+            session.LaunchNew("Figure", 1600, 1000, 96, true);
+            return new VisioFixture(session);
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        if (_session.OwnedProcessId is not null)
+        {
+            _session.Shutdown(true, "discard");
+        }
+        _session.Dispose();
+    }
+}

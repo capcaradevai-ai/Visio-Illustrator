@@ -1,0 +1,10 @@
+{
+  "fixture_id": "simple-quality-loop",
+  "reference_path": "../scientific-scene/reference-preview.png",
+  "scene_path": "../scientific-scene/reference-scene.json",
+  "canvas": {
+    "width_px": 800,
+    "height_px": 500,
+    "dpi": 96
+  }
+}

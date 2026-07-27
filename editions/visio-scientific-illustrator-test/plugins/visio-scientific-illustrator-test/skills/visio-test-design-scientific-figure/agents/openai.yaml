@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visio Test Figure Designer"
+  short_description: "Plan editable Visio scientific figure reconstruction"
+  default_prompt: "Use $visio-test-design-scientific-figure to produce a compact region and object plan for this reference figure."

@@ -1,0 +1,30 @@
+using System.Text.Json;
+using VisioTestBridge.Contracts;
+using VisioTestBridge.Core.Files;
+using VisioTestBridge.Core.Import;
+using VisioTestBridge.Core.Validation;
+
+namespace VisioTestBridge.Core.Commands;
+
+public sealed class FileCommandRouter
+{
+    private readonly VisioFileModeService _service;
+
+    public FileCommandRouter(VisioFileModeService service) => _service = service;
+
+    public object Route(string command, JsonElement parameters) => command switch
+    {
+        "validate" => _service.Validate(Deserialize<ValidateFileCommand>(parameters)),
+        "inspect_file" => _service.Inspect(Deserialize<InspectFileCommand>(parameters)),
+        "export" => _service.Export(Deserialize<ExportFileCommand>(parameters)),
+        "compile_drawio_scene" => new DrawioSceneCompiler().Compile(Deserialize<CompileDrawioSceneCommand>(parameters)),
+        "validate_fidelity" => new FidelityValidator().ValidateFiles(Deserialize<ValidateFidelityCommand>(parameters)),
+        _ => throw BridgeCommandException.Unsupported($"file mode 不支持命令: {command}"),
+    };
+
+    private static T Deserialize<T>(JsonElement parameters) =>
+        parameters.Deserialize<T>(ProtocolJson.Options)
+        ?? throw new BridgeCommandException(
+            BridgeErrorCodes.InvalidArgument,
+            "命令参数不能为空。");
+}

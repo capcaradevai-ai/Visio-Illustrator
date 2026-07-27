@@ -1,0 +1,20 @@
+{
+  "name": "visio-scientific-tools-test",
+  "interface": {
+    "displayName": "Visio Scientific Tools Test"
+  },
+  "plugins": [
+    {
+      "name": "visio-scientific-illustrator-test",
+      "source": {
+        "source": "local",
+        "path": "./plugins/visio-scientific-illustrator-test"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

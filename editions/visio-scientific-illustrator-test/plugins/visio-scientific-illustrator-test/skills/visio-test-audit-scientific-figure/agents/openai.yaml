@@ -1,0 +1,4 @@
+interface:
+  display_name: "Visio Test Figure Reviewer"
+  short_description: "Audit editable Visio figures without modifying them"
+  default_prompt: "Use $visio-test-audit-scientific-figure to audit the current region with fresh revision-bound evidence."

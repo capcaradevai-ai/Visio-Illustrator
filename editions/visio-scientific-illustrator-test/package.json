@@ -1,0 +1,21 @@
+{
+  "name": "visio-scientific-tools-test",
+  "version": "0.4.0-test.1",
+  "private": true,
+  "description": "Build and validation helpers for the isolated Visio Scientific Illustrator Test marketplace.",
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/validate-repo.mjs && npm run smoke",
+    "smoke": "node scripts/smoke-test.mjs",
+    "test:node": "node --test tests/node/*.test.mjs",
+    "test:fidelity": "node --test tests/node/fidelity-baseline.test.mjs tests/node/visual-compare.test.mjs",
+    "build:bridge": "powershell -ExecutionPolicy Bypass -File scripts/build-bridge.ps1",
+    "test:bridge": "dotnet test plugins/visio-scientific-illustrator-test/bridge/VisioTestBridge.sln -c Release --filter \"Category!=VisioIntegration\"",
+    "validate:claude": "claude plugin validate --strict . && claude plugin validate --strict plugins/visio-scientific-illustrator-test",
+    "test": "npm run check && npm run test:node && npm run test:bridge"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}

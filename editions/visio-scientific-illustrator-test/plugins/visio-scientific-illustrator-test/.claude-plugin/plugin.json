@@ -1,0 +1,19 @@
+{
+  "name": "visio-scientific-illustrator-test",
+  "version": "0.4.0-test.1",
+  "description": "Test revisioned quality workflows for editable scientific figures in visible Microsoft Visio.",
+  "author": {
+    "name": "Visio Scientific Illustrator Contributors"
+  },
+  "homepage": "https://github.com/TZ-mx/Visio-Illustrator",
+  "repository": "https://github.com/TZ-mx/Visio-Illustrator",
+  "license": "MIT",
+  "keywords": [
+    "visio",
+    "scientific-figure",
+    "diagram",
+    "mcp",
+    "test-edition"
+  ],
+  "mcpServers": "./.mcp.claude.json"
+}
