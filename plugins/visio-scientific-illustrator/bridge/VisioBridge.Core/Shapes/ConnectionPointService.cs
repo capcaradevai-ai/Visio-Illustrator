@@ -47,7 +47,7 @@ internal sealed class ConnectionPointService
             || !double.IsFinite(directionX) || !double.IsFinite(directionY)
             || directionX is < -1 or > 1 || directionY is < -1 or > 1)
             throw Invalid("连接点坐标必须在 0–1，方向必须在 -1–1 范围内。");
-        AddOrUpdate(shape, name, new ConnectionPointDefinition(x, y, directionX, directionY));
+        AddOrUpdateNormalized(shape, name, new ConnectionPointDefinition(x, y, directionX, directionY));
     }
 
     public static string SelectAutoAnchor(double dx, double dy)
@@ -119,6 +119,40 @@ internal sealed class ConnectionPointService
         };
     }
 
+    public (double X, double Y) ResolvePagePoint(
+        Visio.Shape shape,
+        Visio.Shape otherShape,
+        ConnectorAnchor anchor,
+        string connectorSemanticId,
+        string endpoint)
+    {
+        Visio.Cell? xCell = null;
+        Visio.Cell? yCell = null;
+        try
+        {
+            xCell = Resolve(
+                shape,
+                otherShape,
+                anchor,
+                connectorSemanticId,
+                endpoint);
+            yCell = shape.CellsSRC[
+                (short)Visio.VisSectionIndices.visSectionConnectionPts,
+                xCell.Row,
+                (short)Visio.VisCellIndices.visCnnctY];
+
+            var x = xCell.ResultIU;
+            var y = yCell.ResultIU;
+            shape.XYToPage(x, y, out x, out y);
+            return (x, y);
+        }
+        finally
+        {
+            Release(ref yCell);
+            Release(ref xCell);
+        }
+    }
+
     private static Visio.Cell ResolveAuto(Visio.Shape shape, Visio.Shape otherShape, string? requestedName)
     {
         EnsureStandardAnchors(shape);
@@ -146,15 +180,79 @@ internal sealed class ConnectionPointService
 
     private static Visio.Cell ResolveNormalized(Visio.Shape shape, double x, double y, string rowName)
     {
-        AddOrUpdate(shape, rowName, new ConnectionPointDefinition(x, y, 0, 0));
+        AddOrUpdateNormalized(shape, rowName, new ConnectionPointDefinition(x, y, 0, 0));
         return GetNamedCell(shape, rowName);
     }
 
     private static void EnsureStandardAnchors(Visio.Shape shape)
     {
         foreach (var (name, definition) in AnchorDefinitions)
-            AddOrUpdate(shape, name, definition);
+            AddOrUpdateNormalized(shape, name, definition);
     }
+
+    private static void AddOrUpdateNormalized(
+        Visio.Shape shape,
+        string rowName,
+        ConnectionPointDefinition definition)
+    {
+        if (VisioShapeClassifier.IsOneDimensionalGroup(shape))
+        {
+            AddOrUpdateUsingVisualBounds(shape, rowName, definition);
+            return;
+        }
+
+        AddOrUpdate(shape, rowName, definition);
+    }
+
+    private static void AddOrUpdateUsingVisualBounds(
+        Visio.Shape shape,
+        string rowName,
+        ConnectionPointDefinition definition)
+    {
+        shape.BoundingBox(
+            (short)(Visio.VisBoundingBoxArgs.visBBoxDrawingCoords
+                | Visio.VisBoundingBoxArgs.visBBoxUprightWH),
+            out var left,
+            out var bottom,
+            out var right,
+            out var top);
+
+        var pagePoint = VisualNormalizedToPage(
+            left,
+            bottom,
+            right,
+            top,
+            definition.X,
+            definition.Y);
+
+        shape.XYFromPage(
+            pagePoint.X,
+            pagePoint.Y,
+            out var localX,
+            out var localY);
+
+        var section = (short)Visio.VisSectionIndices.visSectionConnectionPts;
+        var row = GetOrCreateNamedRow(shape, section, rowName);
+        SetCell(shape, section, row, (short)Visio.VisCellIndices.visCnnctX,
+            $"{Number(localX)} in");
+        SetCell(shape, section, row, (short)Visio.VisCellIndices.visCnnctY,
+            $"{Number(localY)} in");
+        SetCell(shape, section, row, (short)Visio.VisCellIndices.visCnnctDirX,
+            Number(definition.DirectionX));
+        SetCell(shape, section, row, (short)Visio.VisCellIndices.visCnnctDirY,
+            Number(definition.DirectionY));
+    }
+
+    internal static (double X, double Y) VisualNormalizedToPage(
+        double left,
+        double bottom,
+        double right,
+        double top,
+        double x,
+        double y)
+        => (
+            left + (right - left) * x,
+            top - (top - bottom) * y);
 
     private static void AddOrUpdate(
         Visio.Shape shape,
@@ -162,29 +260,7 @@ internal sealed class ConnectionPointService
         ConnectionPointDefinition definition)
     {
         var section = (short)Visio.VisSectionIndices.visSectionConnectionPts;
-        if (shape.SectionExists[section, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
-            shape.AddSection(section);
-        var xCellName = $"Connections.{rowName}.X";
-        short row;
-        if (shape.CellExistsU[xCellName, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
-        {
-            row = shape.AddNamedRow(
-                section,
-                rowName,
-                (short)Visio.VisRowTags.visTagCnnctNamed);
-        }
-        else
-        {
-            var xCell = shape.CellsU[xCellName];
-            try
-            {
-                row = xCell.Row;
-            }
-            finally
-            {
-                Marshal.FinalReleaseComObject(xCell);
-            }
-        }
+        var row = GetOrCreateNamedRow(shape, section, rowName);
 
         SetCell(shape, section, row, (short)Visio.VisCellIndices.visCnnctX,
             $"Width*{Number(definition.X)}");
@@ -194,6 +270,34 @@ internal sealed class ConnectionPointService
             Number(definition.DirectionX));
         SetCell(shape, section, row, (short)Visio.VisCellIndices.visCnnctDirY,
             Number(definition.DirectionY));
+    }
+
+    private static short GetOrCreateNamedRow(
+        Visio.Shape shape,
+        short section,
+        string rowName)
+    {
+        if (shape.SectionExists[section, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
+            shape.AddSection(section);
+
+        var xCellName = $"Connections.{rowName}.X";
+        if (shape.CellExistsU[xCellName, (short)Visio.VisExistsFlags.visExistsAnywhere] == 0)
+        {
+            return shape.AddNamedRow(
+                section,
+                rowName,
+                (short)Visio.VisRowTags.visTagCnnctNamed);
+        }
+
+        var xCell = shape.CellsU[xCellName];
+        try
+        {
+            return xCell.Row;
+        }
+        finally
+        {
+            Marshal.FinalReleaseComObject(xCell);
+        }
     }
 
     private static Visio.Cell GetNamedCell(Visio.Shape shape, string rowName) =>

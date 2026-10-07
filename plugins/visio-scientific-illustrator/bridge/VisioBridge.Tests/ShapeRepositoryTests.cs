@@ -86,4 +86,110 @@ public sealed class ShapeRepositoryTests
         Assert.Equal(1, accessor.EnumerationCount);
         Assert.Equal(1, accessor.UniversalNameLookupCount);
     }
+
+    [Fact]
+    public void Adopt_writes_User_CodexId_and_NameU_by_shape_id()
+    {
+        var shape = new FakeShape(65, null)
+        {
+            NameU = "N2024 Front View",
+        };
+        var accessor = FakeShapeAccessor.WithShapes(shape);
+        var repository = new ShapeRepository(accessor);
+
+        using var adopted = repository.Adopt(65, "sw-stack-01");
+
+        Assert.Equal(65, adopted.Id);
+        Assert.Equal("sw-stack-01", shape.UserCodexId);
+        Assert.Equal("Codex_sw_stack_01", shape.NameU);
+        Assert.Equal(1, accessor.IdLookupCount);
+    }
+
+    [Fact]
+    public void Adopt_allows_matching_existing_semantic_id()
+    {
+        var shape = new FakeShape(65, "sw-stack-01")
+        {
+            NameU = "N2024 Front View",
+        };
+        var repository = new ShapeRepository(
+            FakeShapeAccessor.WithShapes(shape));
+
+        using var adopted = repository.Adopt(65, "sw-stack-01");
+
+        Assert.Equal(65, adopted.Id);
+        Assert.Equal("sw-stack-01", shape.UserCodexId);
+        Assert.Equal("Codex_sw_stack_01", shape.NameU);
+    }
+
+    [Fact]
+    public void Adopt_rejects_shape_with_different_semantic_id()
+    {
+        var shape = new FakeShape(65, "different-device")
+        {
+            NameU = "N2024 Front View",
+        };
+        var repository = new ShapeRepository(
+            FakeShapeAccessor.WithShapes(shape));
+
+        var error = Assert.Throws<BridgeCommandException>(() =>
+            repository.Adopt(65, "sw-stack-01"));
+
+        Assert.Equal(BridgeErrorCodes.InvalidArgument, error.Code);
+    }
+
+    [Fact]
+    public void Adopt_rejects_missing_shape_id()
+    {
+        var repository = new ShapeRepository(
+            FakeShapeAccessor.WithShapes(
+                new FakeShape(65, null)));
+
+        var error = Assert.Throws<BridgeCommandException>(() =>
+            repository.Adopt(999, "sw-stack-01"));
+
+        Assert.Equal(BridgeErrorCodes.ShapeNotFound, error.Code);
+    }
+
+    [Fact]
+    public void Adopt_rejects_duplicate_semantic_id_on_another_shape()
+    {
+        var target = new FakeShape(65, null)
+        {
+            NameU = "N2024 Front View",
+        };
+        var existing = new FakeShape(69, "sw-stack-01")
+        {
+            NameU = "N2024 Front View.69",
+        };
+
+        var repository = new ShapeRepository(
+            FakeShapeAccessor.WithShapes(target, existing));
+
+        var error = Assert.Throws<BridgeCommandException>(() =>
+            repository.Adopt(65, "sw-stack-01"));
+
+        Assert.Equal(BridgeErrorCodes.DuplicateSemanticId, error.Code);
+    }
+
+    [Fact]
+    public void Adopt_rejects_universal_name_collision()
+    {
+        var target = new FakeShape(65, null)
+        {
+            NameU = "N2024 Front View",
+        };
+        var existing = new FakeShape(69, null)
+        {
+            NameU = "Codex_sw_stack_01",
+        };
+
+        var repository = new ShapeRepository(
+            FakeShapeAccessor.WithShapes(target, existing));
+
+        var error = Assert.Throws<BridgeCommandException>(() =>
+            repository.Adopt(65, "sw-stack-01"));
+
+        Assert.Equal(BridgeErrorCodes.DuplicateSemanticId, error.Code);
+    }
 }

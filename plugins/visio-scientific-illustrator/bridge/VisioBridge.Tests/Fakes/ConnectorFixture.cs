@@ -68,6 +68,12 @@ internal sealed class FakeConnectorAdapter : IConnectorAdapter
 
     public string? ConnectorSemanticId { get; private set; }
 
+    public ConnectorAnchor? CreatedSourceAnchor { get; private set; }
+
+    public ConnectorAnchor? CreatedTargetAnchor { get; private set; }
+
+    public string? CreatedConnectorSemanticId { get; private set; }
+
     public string? JumpStyle { get; private set; }
 
     public double? LabelPosition { get; private set; }
@@ -81,12 +87,21 @@ internal sealed class FakeConnectorAdapter : IConnectorAdapter
         IShapeHandle target,
         string routing,
         IReadOnlyList<PixelPoint>? waypoints,
-        IReadOnlyList<IShapeHandle> avoidShapes)
+        IReadOnlyList<IShapeHandle> avoidShapes,
+        ConnectorAnchor sourceAnchor,
+        ConnectorAnchor targetAnchor,
+        string connectorSemanticId)
     {
         if (CreateError is not null) throw CreateError;
         Routing = routing;
         Waypoints = waypoints;
         AvoidShapeIds = avoidShapes.Cast<FakeShape>().Select(shape => shape.UserCodexId!).ToArray();
+        SourceAnchor = sourceAnchor;
+        TargetAnchor = targetAnchor;
+        ConnectorSemanticId = connectorSemanticId;
+        CreatedSourceAnchor = sourceAnchor;
+        CreatedTargetAnchor = targetAnchor;
+        CreatedConnectorSemanticId = connectorSemanticId;
         _connector = new FakeShape(100, null);
         return _connector;
     }

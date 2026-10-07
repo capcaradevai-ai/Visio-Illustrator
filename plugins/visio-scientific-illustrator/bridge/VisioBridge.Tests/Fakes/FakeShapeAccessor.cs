@@ -38,6 +38,8 @@ internal sealed class FakeShapeAccessor : IShapeAccessor
 
     public int UniversalNameLookupCount { get; private set; }
 
+    public int IdLookupCount { get; private set; }
+
     public IReadOnlyList<IShapeHandle> EnumerateBoundPageShapesRecursively()
     {
         EnumerationCount++;
@@ -48,6 +50,12 @@ internal sealed class FakeShapeAccessor : IShapeAccessor
     {
         UniversalNameLookupCount++;
         return _shapes.FirstOrDefault(shape => shape.NameU == nameU);
+    }
+
+    public IShapeHandle? FindById(int shapeId)
+    {
+        IdLookupCount++;
+        return _shapes.FirstOrDefault(shape => shape.Id == shapeId);
     }
 
     public string? ReadSemanticId(IShapeHandle shape) => shape.UserCodexId;

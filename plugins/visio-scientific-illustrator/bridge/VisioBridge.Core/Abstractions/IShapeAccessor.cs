@@ -6,6 +6,8 @@ public interface IShapeAccessor
 
     IShapeHandle? FindByUniversalName(string nameU);
 
+    IShapeHandle? FindById(int shapeId);
+
     string? ReadSemanticId(IShapeHandle shape);
 
     void WriteSemanticId(IShapeHandle shape, string semanticId);

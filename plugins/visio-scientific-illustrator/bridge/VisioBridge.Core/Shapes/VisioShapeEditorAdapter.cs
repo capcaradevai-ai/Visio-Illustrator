@@ -55,7 +55,7 @@ internal sealed class VisioShapeEditorAdapter : IShapeEditorAdapter
         UpdateShapeCommand command,
         PixelBox mergedBounds)
     {
-        if (shape.OneD != 0)
+        if (VisioShapeClassifier.IsConnector(shape))
         {
             throw BridgeCommandException.Unsupported(
                 "不能通过二维 bounds 修改 1D connector。");
@@ -275,7 +275,7 @@ internal sealed class VisioShapeEditorAdapter : IShapeEditorAdapter
                 var candidate = shapes[index];
                 try
                 {
-                    if (candidate.OneD == 0) continue;
+                    if (!VisioShapeClassifier.IsConnector(candidate)) continue;
                     var connects = candidate.Connects;
                     try
                     {

@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using VisioBridge.Core.Abstractions;
 using VisioBridge.Core.Interop;
+using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Files;
@@ -143,7 +144,8 @@ internal sealed class VisioDocumentValidator : IDocumentValidator
                     {
                         throw Invalid($"User.CodexId 重复: {semanticId}");
                     }
-                    if (shape.OneD != 0 && semanticId is not null)
+                    if (semanticId is not null
+                        && VisioShapeClassifier.IsConnector(shape))
                     {
                         ValidateConnector(shape, semanticId);
                     }

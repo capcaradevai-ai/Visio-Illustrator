@@ -80,6 +80,37 @@ internal sealed class VisioShapeAccessor : IShapeAccessor
         }
     }
 
+    public IShapeHandle? FindById(int shapeId)
+    {
+        if (shapeId <= 0) return null;
+
+        var shapes = EnumerateBoundPageShapesRecursively();
+        IShapeHandle? match = null;
+
+        try
+        {
+            foreach (var shape in shapes)
+            {
+                if (shape.Id != shapeId) continue;
+
+                match = shape;
+                break;
+            }
+
+            foreach (var shape in shapes)
+            {
+                if (!ReferenceEquals(shape, match)) shape.Dispose();
+            }
+
+            return match;
+        }
+        catch
+        {
+            foreach (var shape in shapes) shape.Dispose();
+            throw;
+        }
+    }
+
     public string? ReadSemanticId(IShapeHandle shape) => shape.UserCodexId;
 
     public void WriteSemanticId(IShapeHandle shape, string semanticId) =>

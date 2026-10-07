@@ -37,7 +37,10 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         IShapeHandle target,
         string routing,
         IReadOnlyList<PixelPoint>? waypoints,
-        IReadOnlyList<IShapeHandle> avoidShapes)
+        IReadOnlyList<IShapeHandle> avoidShapes,
+        ConnectorAnchor sourceAnchor,
+        ConnectorAnchor targetAnchor,
+        string connectorSemanticId)
     {
         foreach (var avoidShape in avoidShapes)
         {
@@ -47,8 +50,22 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
         }
         var sourceShape = RequireVisio(source);
         var targetShape = RequireVisio(target);
-        var sourcePoint = ReadPagePin(sourceShape.Shape, "read_source_pin");
-        var targetPoint = ReadPagePin(targetShape.Shape, "read_target_pin");
+        var sourcePoint = routing == "polyline"
+            ? _connectionPoints.ResolvePagePoint(
+                sourceShape.Shape,
+                targetShape.Shape,
+                sourceAnchor,
+                connectorSemanticId,
+                "source")
+            : ReadPagePin(sourceShape.Shape, "read_source_pin");
+        var targetPoint = routing == "polyline"
+            ? _connectionPoints.ResolvePagePoint(
+                targetShape.Shape,
+                sourceShape.Shape,
+                targetAnchor,
+                connectorSemanticId,
+                "target")
+            : ReadPagePin(targetShape.Shape, "read_target_pin");
         if (routing == "polyline")
         {
             var values = new List<double> { sourcePoint.X, sourcePoint.Y };
@@ -77,8 +94,6 @@ internal sealed class VisioConnectorAdapter : IConnectorAdapter
                         "draw_polyline",
                         BridgeErrorCodes.InvalidCoordinates);
                 }
-                StyleMapper.SetFormula(polyline, "ObjType", "2");
-                StyleMapper.SetFormula(polyline, "GlueType", "2");
                 var handle = new VisioShapeHandle(polyline);
                 polyline = null;
                 return handle;

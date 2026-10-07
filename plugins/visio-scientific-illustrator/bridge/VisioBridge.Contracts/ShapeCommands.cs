@@ -15,6 +15,15 @@ public sealed record AddImageCommand(
     [property: JsonPropertyName("file_path")] string FilePath,
     PixelBox Bounds);
 
+public sealed record AdoptShapeCommand(
+    [property: JsonPropertyName("shape_id")] int ShapeId,
+    [property: JsonPropertyName("semantic_id")] string SemanticId);
+
+public sealed record AdoptShapeResult(
+    string SemanticId,
+    int ShapeId,
+    string NameU);
+
 public sealed record ShapeStyle(
     [property: JsonPropertyName("fill_color")] string? FillColor = null,
     [property: JsonPropertyName("fill_transparency")] double? FillTransparency = null,

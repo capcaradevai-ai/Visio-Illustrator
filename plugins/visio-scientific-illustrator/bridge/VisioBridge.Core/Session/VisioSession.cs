@@ -124,6 +124,20 @@ public sealed class VisioSession : IVisioSession
     public ShapeMutationResult AddImage(AddImageCommand command)
         => ExecuteUndoable("Codex add image", () => CreateShapeFactory().AddImage(command));
 
+    public AdoptShapeResult AdoptShape(AdoptShapeCommand command)
+        => ExecuteUndoable("Codex adopt existing shape", () =>
+        {
+            var repository = GetShapeRepository();
+            using var shape = repository.Adopt(
+                command.ShapeId,
+                command.SemanticId);
+
+            return new AdoptShapeResult(
+                command.SemanticId,
+                shape.Id,
+                shape.NameU);
+        });
+
     public PathMutationResult AddPath(AddPathCommand command)
         => ExecuteUndoable("Codex add path", () => CreateFreeformBuilder().Add(command));
 
@@ -799,7 +813,7 @@ public sealed class VisioSession : IVisioSession
                 var shape = shapes[index];
                 try
                 {
-                    if (shape.OneD != 0) connectorCount++;
+                    if (VisioShapeClassifier.IsConnector(shape)) connectorCount++;
                     else shapeCount++;
                 }
                 finally

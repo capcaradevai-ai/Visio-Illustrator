@@ -643,6 +643,19 @@ export const liveTools = [
     },
   },
   {
+    name: "visio_live_adopt_shape",
+    description: "Adopt an existing Visio shape by numeric shape ID and assign it a stable semantic ID.",
+    inputSchema: {
+      type: "object",
+      required: ["shape_id", "semantic_id"],
+      properties: {
+        shape_id: { type: "integer", minimum: 1 },
+        semantic_id: semanticId,
+      },
+      additionalProperties: false,
+    },
+  },
+  {
     name: "visio_live_add_path",
     description: "Add editable M/L/C/A/Z geometry as one Visio shape with up to 32 Geometry sections.",
     inputSchema: {

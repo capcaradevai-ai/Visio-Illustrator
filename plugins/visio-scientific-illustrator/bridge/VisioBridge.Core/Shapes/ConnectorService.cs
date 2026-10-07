@@ -29,7 +29,15 @@ public sealed class ConnectorService
         var phase = "create";
         try
         {
-            connector = _adapter.Create(source, target, plan.Routing, command.Waypoints, avoidShapes);
+            connector = _adapter.Create(
+                source,
+                target,
+                plan.Routing,
+                command.Waypoints,
+                avoidShapes,
+                plan.SourceAnchor,
+                plan.TargetAnchor,
+                command.SemanticId);
             phase = "glue";
             _adapter.Glue(
                 connector,

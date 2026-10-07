@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using VisioBridge.Contracts;
 using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Interop;
+using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Inspection;
@@ -93,7 +94,7 @@ internal sealed class PageInspector
             semanticId,
             shape.ID,
             shape.NameU,
-            shape.OneD != 0
+            VisioShapeClassifier.IsConnector(shape)
                 ? "connector"
                 : shape.Type == (short)Visio.VisShapeTypes.visTypeGroup ? "group" : "shape",
             shape.Text ?? string.Empty,
@@ -144,7 +145,7 @@ internal sealed class PageInspector
                 try
                 {
                     total++;
-                    if (shape.OneD != 0) connectors++;
+                    if (VisioShapeClassifier.IsConnector(shape)) connectors++;
                     if (snapshots.Count < maxShapes) snapshots.Add(Snapshot(shape));
 
                     var children = shape.Shapes;

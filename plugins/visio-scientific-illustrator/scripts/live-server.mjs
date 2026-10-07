@@ -62,6 +62,7 @@ async function handleTool(name, args) {
   if (name === "visio_live_clear") return client.call("clear", args);
   if (name === "visio_live_add_shape") return client.call("add_shape", args);
   if (name === "visio_live_add_image") return client.call("add_image", args);
+  if (name === "visio_live_adopt_shape") return client.call("adopt_shape", args);
   if (name === "visio_live_add_path") return client.call("add_path", args);
   if (name === "visio_live_add_connector") return client.call("add_connector", args);
   if (name === "visio_live_update_shape") return client.call("update_shape", args);

@@ -7,6 +7,7 @@ using VisioBridge.Core.Geometry;
 using VisioBridge.Core.Inspection;
 using VisioBridge.Core.Interop;
 using VisioBridge.Core.Session;
+using VisioBridge.Core.Shapes;
 using Visio = Microsoft.Office.Interop.Visio;
 
 namespace VisioBridge.Core.Files;
@@ -387,7 +388,7 @@ public sealed class VisioFileModeService : IDisposable
                 var shape = collection[index];
                 try
                 {
-                    if (shape.OneD != 0) connectors++;
+                    if (VisioShapeClassifier.IsConnector(shape)) connectors++;
                     else shapes++;
                     var children = shape.Shapes;
                     if (children.Count > 0) CountShapes(children, ref shapes, ref connectors);

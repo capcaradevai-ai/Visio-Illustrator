@@ -9,7 +9,10 @@ public interface IConnectorAdapter
         IShapeHandle target,
         string routing,
         IReadOnlyList<PixelPoint>? waypoints,
-        IReadOnlyList<IShapeHandle> avoidShapes);
+        IReadOnlyList<IShapeHandle> avoidShapes,
+        ConnectorAnchor sourceAnchor,
+        ConnectorAnchor targetAnchor,
+        string connectorSemanticId);
 
     void Glue(
         IShapeHandle connector,

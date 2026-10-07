@@ -55,4 +55,31 @@ public sealed class ConnectionPointServiceTests
         Assert.Throws<BridgeCommandException>(() => ConnectionPointService.ValidateAnchor(
             new ConnectorAnchor("connection_point")));
     }
+
+    [Theory]
+    [InlineData(10, 20, 110, 70, 0, 0, 10, 70)]
+    [InlineData(10, 20, 110, 70, 1, 1, 110, 20)]
+    [InlineData(10, 20, 110, 70, 0.5, 0.5, 60, 45)]
+    [InlineData(10, 20, 110, 70, 0.25, 0.75, 35, 32.5)]
+    public void Visual_normalized_point_uses_top_left_coordinates(
+        double left,
+        double bottom,
+        double right,
+        double top,
+        double x,
+        double y,
+        double expectedX,
+        double expectedY)
+    {
+        var actual = ConnectionPointService.VisualNormalizedToPage(
+            left,
+            bottom,
+            right,
+            top,
+            x,
+            y);
+
+        Assert.Equal(expectedX, actual.X, 8);
+        Assert.Equal(expectedY, actual.Y, 8);
+    }
 }

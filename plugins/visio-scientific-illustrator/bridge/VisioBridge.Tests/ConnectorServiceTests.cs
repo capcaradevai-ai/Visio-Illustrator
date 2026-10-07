@@ -57,6 +57,28 @@ public sealed class ConnectorServiceTests
     }
 
     [Fact]
+    public void Polyline_connector_forwards_named_anchors_to_creation_before_glue()
+    {
+        var fixture = ConnectorFixture.CreateWithShapes("source", "target");
+        var sourceAnchor = new ConnectorAnchor("connection_point", Name: "lan_1");
+        var targetAnchor = new ConnectorAnchor("connection_point", Name: "lan_2");
+
+        fixture.Service.Add(new AddConnectorCommand(
+            "named-polyline",
+            "source",
+            "target",
+            Waypoints: [new PixelPoint(400, 300)],
+            Routing: "polyline",
+            SourceAnchor: sourceAnchor,
+            TargetAnchor: targetAnchor));
+
+        Assert.Equal(sourceAnchor, fixture.Adapter.CreatedSourceAnchor);
+        Assert.Equal(targetAnchor, fixture.Adapter.CreatedTargetAnchor);
+        Assert.Equal("named-polyline", fixture.Adapter.CreatedConnectorSemanticId);
+        Assert.True(fixture.Adapter.GlueCalled);
+    }
+
+    [Fact]
     public void Waypoints_require_polyline_routing()
     {
         var fixture = ConnectorFixture.CreateWithShapes("source", "target");

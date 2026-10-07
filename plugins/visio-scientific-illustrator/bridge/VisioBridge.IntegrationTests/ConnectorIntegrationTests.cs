@@ -156,6 +156,72 @@ public sealed class ConnectorIntegrationTests
 
     [Trait("Category", "VisioIntegration")]
     [Fact]
+    public void Polyline_connector_keeps_explicit_geometry_with_named_connection_points()
+    {
+        using var fixture = VisioFixture.StartVisible();
+        fixture.AddShape(new AddShapeCommand(
+            "named-source",
+            "rectangle",
+            new PixelBox(100, 150, 200, 100),
+            "Source"));
+        fixture.AddShape(new AddShapeCommand(
+            "named-target",
+            "rectangle",
+            new PixelBox(1100, 650, 200, 100),
+            "Target"));
+        fixture.AddConnectionPoint(new AddConnectionPointCommand(
+            "named-source", "lan_1", 1, 0.25));
+        fixture.AddConnectionPoint(new AddConnectionPointCommand(
+            "named-target", "lan_2", 0, 0.75));
+
+        var result = fixture.AddConnector(new AddConnectorCommand(
+            "named-polyline",
+            "named-source",
+            "named-target",
+            Waypoints:
+            [
+                new PixelPoint(450, 700),
+                new PixelPoint(850, 250),
+            ],
+            Routing: "polyline",
+            SourceAnchor: new ConnectorAnchor("connection_point", Name: "lan_1"),
+            TargetAnchor: new ConnectorAnchor("connection_point", Name: "lan_2")));
+
+        var sourcePinX = fixture.ReadCellResult("named-source", "PinX");
+        var sourcePinY = fixture.ReadCellResult("named-source", "PinY");
+        var sourceWidth = fixture.ReadCellResult("named-source", "Width");
+        var sourceHeight = fixture.ReadCellResult("named-source", "Height");
+        var targetPinX = fixture.ReadCellResult("named-target", "PinX");
+        var targetPinY = fixture.ReadCellResult("named-target", "PinY");
+        var targetWidth = fixture.ReadCellResult("named-target", "Width");
+        var targetHeight = fixture.ReadCellResult("named-target", "Height");
+
+        Assert.Equal(sourcePinX + sourceWidth * 0.5,
+            fixture.ReadCellResult("named-polyline", "BeginX"), 6);
+        Assert.Equal(sourcePinY + sourceHeight * 0.25,
+            fixture.ReadCellResult("named-polyline", "BeginY"), 6);
+        Assert.Equal(targetPinX - targetWidth * 0.5,
+            fixture.ReadCellResult("named-polyline", "EndX"), 6);
+        Assert.Equal(targetPinY - targetHeight * 0.25,
+            fixture.ReadCellResult("named-polyline", "EndY"), 6);
+
+        var geometry = fixture.GetGeometry(new GetGeometryCommand("named-polyline"));
+        var polylineFormula = Assert.Single(
+            geometry.Sections.Single(section => section.Section == 0).Rows
+                .SelectMany(row => row.Cells.Values)
+                .Where(formula => formula.StartsWith("POLYLINE(", StringComparison.Ordinal)));
+        Assert.True(
+            polylineFormula.Count(character => character == ',') >= 5,
+            polylineFormula);
+        Assert.Equal(2, result.ConnectionCount);
+        Assert.Equal(
+            new[] { "named-source", "named-target" },
+            fixture.Inspect().Shapes.Single(shape => shape.SemanticId == "named-polyline")
+                .ConnectedTo.Order(StringComparer.Ordinal));
+    }
+
+    [Trait("Category", "VisioIntegration")]
+    [Fact]
     public void Connector_can_glue_to_explicit_connection_points()
     {
         using var fixture = VisioFixture.StartVisible();

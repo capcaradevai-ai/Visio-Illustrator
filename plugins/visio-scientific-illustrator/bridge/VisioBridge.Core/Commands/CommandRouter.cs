@@ -20,6 +20,7 @@ public sealed class CommandRouter
         "status" => _session.GetStatus(),
         "add_shape" => _session.AddShape(Deserialize<AddShapeCommand>(parameters)),
         "add_image" => _session.AddImage(Deserialize<AddImageCommand>(parameters)),
+        "adopt_shape" => _session.AdoptShape(Deserialize<AdoptShapeCommand>(parameters)),
         "add_path" => _session.AddPath(Deserialize<AddPathCommand>(parameters)),
         "update_path" => _session.UpdatePath(Deserialize<UpdatePathCommand>(parameters)),
         "add_connector" => _session.AddConnector(Deserialize<AddConnectorCommand>(parameters)),

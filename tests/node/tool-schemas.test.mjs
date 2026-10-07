@@ -21,6 +21,7 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_live_clear",
     "visio_live_add_shape",
     "visio_live_add_image",
+    "visio_live_adopt_shape",
     "visio_live_add_path",
     "visio_live_add_connector",
     "visio_live_update_shape",
@@ -59,6 +60,32 @@ test("live tool names are stable and Visio-specific", () => {
     "visio_compare_preview",
     "visio_validate_fidelity",
   ]);
+});
+
+test("adopt shape schema requires a positive shape ID and semantic ID", () => {
+  const adoptShape = liveTools.find(
+    (tool) => tool.name === "visio_live_adopt_shape",
+  );
+
+  assert.doesNotThrow(() => validateSchema({
+    shape_id: 65,
+    semantic_id: "sw-stack-01",
+  }, adoptShape.inputSchema));
+
+  assert.throws(() => validateSchema({
+    shape_id: 0,
+    semantic_id: "sw-stack-01",
+  }, adoptShape.inputSchema));
+
+  assert.throws(() => validateSchema({
+    shape_id: 65,
+  }, adoptShape.inputSchema));
+
+  assert.throws(() => validateSchema({
+    shape_id: 65,
+    semantic_id: "sw-stack-01",
+    unknown: true,
+  }, adoptShape.inputSchema));
 });
 
 test("draw scene schema exposes paced regional execution", () => {

@@ -15,6 +15,8 @@ public interface IVisioSession : IDisposable
 
     ShapeMutationResult AddImage(AddImageCommand command);
 
+    AdoptShapeResult AdoptShape(AdoptShapeCommand command);
+
     PathMutationResult AddPath(AddPathCommand command);
 
     PathMutationResult UpdatePath(UpdatePathCommand command);
